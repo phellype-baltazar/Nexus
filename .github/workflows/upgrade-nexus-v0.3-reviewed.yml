@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           cat > .github/workflows/ci.yml <<'CI'
-name: Nexus CI
+          name: Nexus CI
 
           on:
             push:
@@ -60,7 +60,6 @@ name: Nexus CI
                     cache: npm
                 - run: npm ci
                 - run: npm run build
-
           CI
           rm -f .github/workflows/bootstrap-nexus.yml
           rm -f .github/workflows/upgrade-nexus-v0.2.yml
