@@ -1,0 +1,1 @@
+export default function OfflinePage(){return <main className="login-wrap"><section className="card login-card"><div className="hero-logo">N</div><h1>Você está offline</h1><p className="muted">O Nexus continuará mostrando conteúdo disponível no dispositivo. A sincronização completa entra na evolução do frontend.</p></section></main>}

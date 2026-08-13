@@ -1,0 +1,1 @@
+export function AppHeader({title="Nexus"}:{title?:string}){return <header className="topbar"><div className="brand"><div className="brand-mark">N</div><span>{title}</span></div><span className="chip"><span className="status-dot"/> Online</span></header>}
