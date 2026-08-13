@@ -1,0 +1,27 @@
+name: Bootstrap Nexus frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract frontend
+        run: |
+          unzip -o Nexus_frontend_etapa13.zip
+          rm Nexus_frontend_etapa13.zip
+
+      - name: Commit frontend
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "feat: bootstrap Nexus Next.js frontend"
+          git push
