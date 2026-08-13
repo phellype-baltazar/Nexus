@@ -1,21 +1,22 @@
-# Nexus
+# Nexus v0.2
 
-Mobile-first project and portfolio management SaaS built with Next.js + Supabase.
+Frontend mobile-first conectado ao backend Supabase do Nexus.
 
-## Environment
-Configure these variables in Vercel:
-- NEXT_PUBLIC_SUPABASE_URL
-- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-- NEXT_PUBLIC_APP_URL
+## Entregue nesta versão
+- Login Google / Microsoft / e-mail
+- Dashboard contextual e Centro de Decisão
+- Workspace com nome único validado no backend
+- Entrada por código de convite
+- Código compartilhável com modo "aprovação" ou "auto join"
+- Grupos, Programas, Projetos e Atividades
+- Pessoas e solicitações de acesso
+- Inbox e Agenda
+- Riscos, KPIs, orçamento, benefícios, reuniões e decisões
+- Relatórios
+- IA
+- Auditoria
+- Leitura de configurações/white-label
+- PWA base
 
-Never expose a Supabase service-role key in the browser.
-
-## Included
-- App Router + TypeScript
-- Supabase SSR Auth
-- Google + Microsoft OAuth buttons
-- Mobile shell with bottom navigation
-- Dashboard, Inbox, Agenda, More
-- Organization onboarding
-- Dynamic Group / Program / Project / Activity pages
-- PWA manifest, service worker and offline screen
+## Segurança
+Autorização continua sendo feita no Supabase por RLS e RPC. Nunca coloque service_role no frontend.

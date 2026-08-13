@@ -1,0 +1,6 @@
+"use client";import {useState} from "react";import {createClient} from "@/lib/supabase/client";
+export function AiRequestForm({organizationId,useCases}:{organizationId:string,useCases:{key:string,name:string}[]}){
+ const[useCase,setUseCase]=useState(useCases[0]?.key||"");const[instruction,setInstruction]=useState("");const[msg,setMsg]=useState("");
+ async function submit(e:React.FormEvent){e.preventDefault();const s=createClient();const{data,error}=await s.rpc("rpc_request_ai_job",{p_organization_id:organizationId,p_use_case_key:useCase,p_scope_type:"organization",p_scope_id:organizationId,p_user_instruction:instruction||null,p_input_payload:{}});setMsg(error?error.message:`Job criado: ${data}`)}
+ return <form className="card form" onSubmit={submit}><h2>Solicitar análise</h2><div className="field"><label>Uso</label><select className="select" value={useCase} onChange={e=>setUseCase(e.target.value)}>{useCases.map(x=><option key={x.key} value={x.key}>{x.name}</option>)}</select></div><div className="field"><label>Instrução</label><textarea className="textarea" value={instruction} onChange={e=>setInstruction(e.target.value)} placeholder="Ex.: gere um resumo executivo do portfólio"/></div><button className="btn btn-primary btn-block">Solicitar IA</button>{msg&&<div className="notice">{msg}</div>}</form>
+}
