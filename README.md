@@ -1,22 +1,16 @@
-# Nexus v0.2
+# Nexus v0.3
 
-Frontend mobile-first conectado ao backend Supabase do Nexus.
+Plataforma SaaS mobile-first para gestão contextual de organizações, grupos, programas, projetos e atividades.
 
-## Entregue nesta versão
-- Login Google / Microsoft / e-mail
-- Dashboard contextual e Centro de Decisão
-- Workspace com nome único validado no backend
-- Entrada por código de convite
-- Código compartilhável com modo "aprovação" ou "auto join"
-- Grupos, Programas, Projetos e Atividades
-- Pessoas e solicitações de acesso
-- Inbox e Agenda
-- Riscos, KPIs, orçamento, benefícios, reuniões e decisões
-- Relatórios
-- IA
-- Auditoria
-- Leitura de configurações/white-label
-- PWA base
+## v0.3 — Contextual Portfolio Management
+- criação integrada Grupo → Programa → Projeto → Atividades
+- páginas contextuais para Grupo, Programa e Projeto
+- atividades com início/fim, responsável, prioridade, status e esforço
+- KPIs, riscos e financeiro por Empresa, Grupo, Programa ou Projeto
+- visão direta ou consolidada abaixo
+- roadmap, objetivos estratégicos, capacidade e priorização de portfólio
+- status reports e arquivamento preservando histórico
+- autenticação Supabase com RLS como camada de autorização
 
 ## Segurança
-Autorização continua sendo feita no Supabase por RLS e RPC. Nunca coloque service_role no frontend.
+Nunca use `service_role` no frontend. O cliente usa somente URL pública e publishable key.

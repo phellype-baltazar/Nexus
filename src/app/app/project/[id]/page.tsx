@@ -1,2 +1,53 @@
-import { EntityDetail } from "@/components/entity-detail";
-export default async function Page({params}:{params:Promise<{id:string}>}){const{id}=await params;return <EntityDetail type="project" id={id}/>}
+import Link from "next/link";
+import {createClient} from "@/lib/supabase/server";
+import {getCurrentWorkspace} from "@/lib/workspace";
+import {ContextNav} from "@/components/context-nav";
+import {ActivityCreator,RiskCreator,KpiCreator,FinanceCreator,StatusReportCreator} from "@/components/project-workspace";
+import {EntityActions} from "@/components/entity-actions";
+import {dateBR,money,pct,healthLabel} from "@/lib/format";
+
+export default async function Page({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>}) {
+  const {id}=await params; const {tab="overview"}=await searchParams; const s=await createClient(); const w=await getCurrentWorkspace(); if(!w)return null; const {data:claims}=await s.auth.getClaims(); const userId=String(claims?.claims?.sub||"");
+  const {data:p}=await s.from("projects").select("*,programs(id,name,groups(id,name))").eq("id",id).is("deleted_at",null).maybeSingle();
+  if(!p)return <main className="page"><h1>Projeto</h1><div className="card">Não encontrado ou sem permissão.</div></main>;
+  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:benefits},{data:meetings},{data:members},{data:reports},{data:deps}] = await Promise.all([
+    s.from("activities").select("*").eq("project_id",id).is("deleted_at",null).order("due_date",{ascending:true}),
+    s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
+    s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
+    s.from("budgets").select("*").eq("project_id",id).order("updated_at",{ascending:false}),
+    s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
+    s.from("meetings").select("*").eq("project_id",id).is("deleted_at",null).order("starts_at",{ascending:false}),
+    s.rpc("rpc_admin_members",{p_organization_id:w.id}),
+    s.from("status_reports").select("*").eq("project_id",id).order("period_end",{ascending:false}),
+    s.from("project_dependencies").select("*,projects!project_dependencies_depends_on_project_id_fkey(name)").eq("project_id",id)
+  ]);
+  const tabs=[["overview","Visão geral"],["activities","Atividades"],["risks","Riscos"],["kpis","KPIs"],["finance","Financeiro"],["people","Pessoas"],["meetings","Reuniões"],["status","Status"]];
+
+  return <main className="page">
+    <ContextNav organizationName={w.name} group={(p as any).programs?.groups} program={(p as any).programs} project={{id:p.id,name:p.name}}/>
+    <span className="eyebrow">Projeto</span><h1>{p.name}</h1>
+    <div className="tabs" style={{margin:"12px 0 18px"}}>{tabs.map(([k,l])=><Link className={`tab ${tab===k?"active":""}`} href={`/app/project/${id}?tab=${k}`} key={k}>{l}</Link>)}</div>
+
+    {tab==="overview"&&<>
+      <section className="grid grid-2"><div className="card"><div className="eyebrow">Progresso</div><div className="metric">{pct(p.progress)}</div></div><div className="card"><div className="eyebrow">Saúde</div><div style={{fontWeight:900,marginTop:8}}>{healthLabel(p.health)}</div></div><div className="card"><div className="eyebrow">Início</div><div style={{fontWeight:900,marginTop:8}}>{dateBR(p.start_date)}</div></div><div className="card"><div className="eyebrow">Fim</div><div style={{fontWeight:900,marginTop:8}}>{dateBR(p.due_date)}</div></div></section>
+      <section className="card"><h2>Descrição</h2><p className="muted">{p.description||"Sem descrição."}</p><div className="chip">{p.status}</div> <div className="chip">{p.priority}</div></section>
+      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} concluídas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>r.status==="open").length||0} abertos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
+      {!!deps?.length&&<section className="card"><h2>Dependências</h2>{deps.map((d:any)=><div className="row" key={d.id}><div className="row-main"><div className="row-title">{d.projects?.name||"Projeto"}</div><div className="row-sub">{d.dependency_type}</div></div></div>)}</section>}
+      <EntityActions type="project" id={p.id} initialTitle={p.name} initialDescription={p.description||""}/>
+    </>}
+
+    {tab==="activities"&&<><section className="card list">{!activities?.length?<div className="empty">Nenhuma atividade.</div>:activities.map((a:any)=><Link className="row" href={`/app/activity/${a.id}`} key={a.id}><div className="row-main"><div className="row-title">{a.title}</div><div className="row-sub">{dateBR(a.start_date)} → {dateBR(a.due_date)} · {a.status} · {a.priority}</div></div><span className="chip">{pct(a.progress)}</span></Link>)}</section><ActivityCreator organizationId={w.id} projectId={id} members={members||[]}/></>}
+
+    {tab==="risks"&&<><section className="card list">{!risks?.length?<div className="empty">Nenhum risco.</div>:risks.map((r:any)=><div className="row" key={r.id}><div className="row-main"><div className="row-title">{r.title}</div><div className="row-sub">{r.category||"Sem categoria"} · {r.probability}/{r.impact} · revisão {dateBR(r.review_date)}</div></div><span className="chip warning">{r.score??"—"}</span></div>)}</section><RiskCreator organizationId={w.id} projectId={id}/></>}
+
+    {tab==="kpis"&&<><section className="card list">{!kpis?.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency}</div></div><span className="chip">{k.trend||"—"}</span></div>)}</section><KpiCreator organizationId={w.id} projectId={id}/></>}
+
+    {tab==="finance"&&<><section className="grid grid-2">{["budget","actual","committed","forecast","saving","benefit"].map(key=><div className="card" key={key}><div className="eyebrow">{key}</div><div style={{fontWeight:900,fontSize:17,marginTop:7}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}</section><FinanceCreator organizationId={w.id} projectId={id}/></>}
+
+    {tab==="people"&&<section className="card list">{!members?.length?<div className="empty">Nenhum membro disponível.</div>:members.map((m:any)=><div className="row" key={m.user_id}><div className="row-main"><div className="row-title">{m.full_name||m.email||"Usuário"}</div><div className="row-sub">{m.role} · {m.status}</div></div></div>)}</section>}
+
+    {tab==="meetings"&&<section className="card list">{!meetings?.length?<div className="empty">Nenhuma reunião vinculada.</div>:meetings.map((m:any)=><div className="row" key={m.id}><div className="row-main"><div className="row-title">{m.title}</div><div className="row-sub">{dateBR(m.starts_at)} · {m.status}</div></div></div>)}</section>}
+
+    {tab==="status"&&<><section className="card list">{!reports?.length?<div className="empty">Nenhum status report.</div>:reports.map((r:any)=><div className="row" key={r.id}><div className="row-main"><div className="row-title">{dateBR(r.period_start)} – {dateBR(r.period_end)}</div><div className="row-sub">{r.accomplishments||"Sem resumo"} · próximos passos: {r.next_steps||"—"}</div></div><span className={`chip ${r.overall_status==="off_track"?"danger":r.overall_status==="attention"?"warning":"success"}`}>{r.overall_status}</span></div>)}</section><StatusReportCreator organizationId={w.id} projectId={id} userId={userId}/></>}
+  </main>;
+}
