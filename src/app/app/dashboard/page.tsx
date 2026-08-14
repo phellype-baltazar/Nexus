@@ -114,16 +114,40 @@ export default async function Page() {
     criticalRisksByGroup.set(groupId, (criticalRisksByGroup.get(groupId) || 0) + 1);
   });
 
+  const summaryCardStyle = {
+    minHeight: 150,
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+  };
+
+  const summaryLabelStyle = {
+    minHeight: 42,
+    display: "flex",
+    alignItems: "flex-end",
+  };
+
   return <main className="page">
     <span className="eyebrow">{w.name}</span>
-    <h1>Dashboard consolidado do Capítulo</h1>
-    <p className="muted">Visão executiva consolidada das direções, programas e projetos.</p>
+    <h1>Visão Geral</h1>
 
     <section className="grid grid-2">
-      <div className="card"><div className="eyebrow">Progresso consolidado</div><div className="metric">{pct(progress)}</div></div>
-      <div className="card"><div className="eyebrow">Status geral</div><div style={{fontWeight:900,fontSize:19,marginTop:7}}>{healthLabel(overallStatus)}</div></div>
-      <div className="card"><div className="eyebrow">Projetos ativos</div><div className="metric">{projects.length}</div></div>
-      <div className="card"><div className="eyebrow">Atividades atrasadas</div><div className="metric">{overdue}</div></div>
+      <div className="card" style={summaryCardStyle}>
+        <div className="eyebrow" style={summaryLabelStyle}>Progresso consolidado</div>
+        <div className="metric">{pct(progress)}</div>
+      </div>
+      <div className="card" style={summaryCardStyle}>
+        <div className="eyebrow" style={summaryLabelStyle}>Status geral</div>
+        <div className="metric" style={{fontSize:28,lineHeight:1.1}}>{healthLabel(overallStatus)}</div>
+      </div>
+      <div className="card" style={summaryCardStyle}>
+        <div className="eyebrow" style={summaryLabelStyle}>Projetos ativos</div>
+        <div className="metric">{projects.length}</div>
+      </div>
+      <div className="card" style={summaryCardStyle}>
+        <div className="eyebrow" style={summaryLabelStyle}>Atividades atrasadas</div>
+        <div className="metric">{overdue}</div>
+      </div>
     </section>
 
     <div className="section-title"><h2>Resumo das Direções</h2><Link href="/app/groups" className="chip">Ver todas</Link></div>
