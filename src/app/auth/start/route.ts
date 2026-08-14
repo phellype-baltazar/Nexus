@@ -15,18 +15,35 @@ export async function GET(request: Request) {
     );
   }
 
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://nexus-one-taupe-31.vercel.app";
+
+  /*
+   * IMPORTANTE:
+   * o início do PKCE e o callback precisam acontecer
+   * no mesmo domínio.
+   *
+   * Se o usuário abriu um alias da Vercel,
+   * primeiro levamos para o domínio oficial.
+   */
+  if (url.origin !== appUrl) {
+    return NextResponse.redirect(
+      new URL(
+        `/auth/start?provider=${provider}`,
+        appUrl
+      )
+    );
+  }
+
   const supabase = await createClient();
 
   await supabase.auth.signOut({
     scope: "local",
   });
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://nexus-one-taupe-31.vercel.app";
-
   const redirectTo =
-    `${appUrl}/auth/callback?expected=${provider}`;
+    `${appUrl}/auth/callback`;
 
   const { data, error } =
     await supabase.auth.signInWithOAuth({
@@ -41,11 +58,11 @@ export async function GET(request: Request) {
           : {}),
 
         queryParams: {
-  prompt:
-    provider === "azure"
-      ? "login"
-      : "select_account",
-},
+          prompt:
+            provider === "azure"
+              ? "login"
+              : "select_account",
+        },
       },
     });
 
