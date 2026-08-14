@@ -41,8 +41,11 @@ export async function GET(request: Request) {
           : {}),
 
         queryParams: {
-          prompt: "select_account",
-        },
+  prompt:
+    provider === "azure"
+      ? "login"
+      : "select_account",
+},
       },
     });
 
