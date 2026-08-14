@@ -5,69 +5,46 @@ import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [password, setPassword] =
+    useState("");
+
+  const [busy, setBusy] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState<string | null>(null);
 
   const supabase = createClient();
 
-  async function clearCurrentSession() {
-    const { data } = await supabase.auth.getSession();
-
-    if (data.session) {
-      await supabase.auth.signOut({ scope: "local" });
-    }
-  }
-
-  async function oauth(provider: "google" | "azure") {
+  function oauth(
+    provider: "google" | "azure"
+  ) {
     setBusy(true);
     setMessage(null);
 
-    try {
-      // Se o usuário escolher explicitamente outro provedor,
-      // não reutilizar a sessão anterior do navegador.
-      await clearCurrentSession();
-
-      const redirectTo =
-        `${window.location.origin}/auth/callback?expected=${provider}`;
-
-      const options =
-        provider === "azure"
-          ? {
-              redirectTo,
-              scopes: "email",
-            }
-          : {
-              redirectTo,
-            };
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options,
-      });
-
-      if (error) {
-        setMessage(error.message);
-        setBusy(false);
-      }
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível iniciar o login."
-      );
-      setBusy(false);
-    }
+    // A troca de sessão agora acontece
+    // no servidor, não no navegador.
+    window.location.href =
+      `/auth/start?provider=${provider}`;
   }
 
-  async function emailLogin(e: React.FormEvent) {
+  async function emailLogin(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
 
     setBusy(true);
     setMessage(null);
 
     try {
-      await clearCurrentSession();
+      const { data: current } =
+        await supabase.auth.getSession();
+
+      if (current.session) {
+        await supabase.auth.signOut({
+          scope: "local",
+        });
+      }
 
       const { error } =
         await supabase.auth.signInWithPassword({
@@ -81,13 +58,15 @@ export function LoginForm() {
         return;
       }
 
-      window.location.href = "/app/dashboard";
+      window.location.href =
+        "/app/dashboard";
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
           : "Não foi possível entrar."
       );
+
       setBusy(false);
     }
   }
@@ -110,11 +89,18 @@ export function LoginForm() {
         Continuar com Microsoft
       </button>
 
-      <div className="divider">ou</div>
+      <div className="divider">
+        ou
+      </div>
 
-      <form className="form" onSubmit={emailLogin}>
+      <form
+        className="form"
+        onSubmit={emailLogin}
+      >
         <div className="field">
-          <label htmlFor="email">E-mail</label>
+          <label htmlFor="email">
+            E-mail
+          </label>
 
           <input
             id="email"
@@ -122,13 +108,17 @@ export function LoginForm() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) =>
+              setEmail(e.target.value)
+            }
             required
           />
         </div>
 
         <div className="field">
-          <label htmlFor="password">Senha</label>
+          <label htmlFor="password">
+            Senha
+          </label>
 
           <input
             id="password"
@@ -136,7 +126,9 @@ export function LoginForm() {
             type="password"
             autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) =>
+              setPassword(e.target.value)
+            }
             required
           />
         </div>
@@ -145,12 +137,17 @@ export function LoginForm() {
           className="btn btn-primary"
           disabled={busy}
         >
-          {busy ? "Entrando..." : "Entrar"}
+          {busy
+            ? "Entrando..."
+            : "Entrar"}
         </button>
       </form>
 
       {message && (
-        <p className="muted" role="alert">
+        <p
+          className="muted"
+          role="alert"
+        >
           {message}
         </p>
       )}
