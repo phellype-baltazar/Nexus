@@ -4,56 +4,32 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
 
-  const provider = url.searchParams.get("provider");
+  const code = url.searchParams.get("code");
 
-  if (
-    provider !== "google" &&
-    provider !== "azure"
-  ) {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://nexus-one-taupe-31.vercel.app";
+
+  if (!code) {
     return NextResponse.redirect(
-      new URL("/login?error=provider", url.origin)
+      new URL("/login?error=missing_code", appUrl)
     );
   }
 
   const supabase = await createClient();
 
-  // Encerra a sessão atual no servidor
-  // antes de iniciar outro provedor.
-  await supabase.auth.signOut({
-    scope: "local",
-  });
+  const { error } =
+    await supabase.auth.exchangeCodeForSession(code);
 
-  const redirectTo =
-    `${url.origin}/auth/callback?expected=${provider}`;
+  if (error) {
+    console.error("OAuth callback error:", error.message);
 
-  const { data, error } =
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-
-        ...(provider === "azure"
-          ? {
-              scopes: "email",
-            }
-          : {}),
-
-        // Obriga Google/Microsoft a mostrar
-        // a escolha de conta.
-        queryParams: {
-          prompt: "select_account",
-        },
-      },
-    });
-
-  if (error || !data.url) {
     return NextResponse.redirect(
-      new URL(
-        "/login?error=oauth_start",
-        url.origin
-      )
+      new URL("/login?error=oauth_callback", appUrl)
     );
   }
 
-  return NextResponse.redirect(data.url);
+  return NextResponse.redirect(
+    new URL("/app/dashboard", appUrl)
+  );
 }
