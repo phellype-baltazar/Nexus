@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { pct, healthLabel } from "@/lib/format";
-import { Layers3, FolderKanban, ListChecks, Users, ShieldAlert, Target, WalletCards, BrainCircuit } from "lucide-react";
 
 function numberValue(value: unknown) {
   const n = Number(value ?? 0);
@@ -19,12 +18,20 @@ function isOpenStatus(status: unknown) {
   return !["done", "completed", "closed", "cancelled", "canceled", "resolved"].includes(value);
 }
 
-function portfolioHealth(projects: any[], overdue: number) {
-  const health = projects.map((project) => String(project.health || ""));
-  if (health.includes("off_track")) return "off_track";
-  if (health.includes("attention") || overdue > 0) return "attention";
-  if (health.includes("on_track")) return "on_track";
+function portfolioStatus(projects: any[], overdue: number) {
+  const statuses = projects.map((project) => String(project.health || ""));
+  if (statuses.includes("off_track")) return "off_track";
+  if (statuses.includes("attention") || overdue > 0) return "attention";
+  if (statuses.includes("on_track")) return "on_track";
   return overdue > 0 ? "attention" : "on_track";
+}
+
+function directionStatus(health: unknown, progress: number, overdue: number, criticalRisks: number) {
+  const current = String(health || "");
+  if (current === "off_track" || current === "attention" || current === "on_track") return current;
+  if (criticalRisks > 0 || overdue >= 3 || progress < 45) return "off_track";
+  if (overdue > 0 || progress < 70) return "attention";
+  return "on_track";
 }
 
 export default async function Page() {
@@ -42,25 +49,26 @@ export default async function Page() {
     { data: programsData },
     { data: projectsData },
     { data: activitiesData },
-    { data: decisionData },
+    { data: risksData },
   ] = await Promise.all([
     s.from("groups").select("id,name,description,progress,health").eq("organization_id", w.id).is("deleted_at", null).is("archived_at", null).order("name"),
     s.from("programs").select("id,name,group_id,progress,health").eq("organization_id", w.id).is("deleted_at", null).is("archived_at", null),
     s.from("projects").select("id,name,program_id,progress,health").eq("organization_id", w.id).is("deleted_at", null).is("archived_at", null),
-    s.from("activities").select("id,due_date,status,progress").eq("organization_id", w.id).is("deleted_at", null),
-    s.rpc("rpc_decision_center", { p_organization_id: w.id, p_group_id: null, p_program_id: null, p_project_id: null, p_limit: 5 }),
+    s.from("activities").select("id,project_id,due_date,status,progress").eq("organization_id", w.id).is("deleted_at", null),
+    s.from("risks").select("id,group_id,program_id,project_id,score,status").eq("organization_id", w.id).is("deleted_at", null),
   ]);
 
   const groups = Array.isArray(groupsData) ? groupsData : [];
   const programs = Array.isArray(programsData) ? programsData : [];
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const activities = Array.isArray(activitiesData) ? activitiesData : [];
-  const decision = Array.isArray(decisionData) ? decisionData : [];
+  const risks = Array.isArray(risksData) ? risksData : [];
 
-  const overdue = activities.filter((activity: any) => {
+  const overdueActivities = activities.filter((activity: any) => {
     const due = String(activity.due_date || "").slice(0, 10);
     return Boolean(due) && due < today && isOpenStatus(activity.status);
-  }).length;
+  });
+  const overdue = overdueActivities.length;
 
   const progressSource = projects.length
     ? projects.map((project: any) => numberValue(project.progress))
@@ -69,12 +77,12 @@ export default async function Page() {
       : groups.map((group: any) => numberValue(group.progress));
 
   const progress = Math.round(average(progressSource));
-  const health = portfolioHealth(projects, overdue);
+  const overallStatus = portfolioStatus(projects, overdue);
 
-  const programsByGroup = new Map<string, number>();
+  const programsByGroup = new Map<string, any[]>();
   programs.forEach((program: any) => {
     if (!program.group_id) return;
-    programsByGroup.set(program.group_id, (programsByGroup.get(program.group_id) || 0) + 1);
+    programsByGroup.set(program.group_id, [...(programsByGroup.get(program.group_id) || []), program]);
   });
 
   const programToGroup = new Map<string, string>();
@@ -82,30 +90,79 @@ export default async function Page() {
     if (program.id && program.group_id) programToGroup.set(program.id, program.group_id);
   });
 
-  const projectsByGroup = new Map<string, number>();
+  const projectsByGroup = new Map<string, any[]>();
+  const projectToGroup = new Map<string, string>();
   projects.forEach((project: any) => {
     const groupId = programToGroup.get(project.program_id);
     if (!groupId) return;
-    projectsByGroup.set(groupId, (projectsByGroup.get(groupId) || 0) + 1);
+    projectToGroup.set(project.id, groupId);
+    projectsByGroup.set(groupId, [...(projectsByGroup.get(groupId) || []), project]);
+  });
+
+  const overdueByGroup = new Map<string, number>();
+  overdueActivities.forEach((activity: any) => {
+    const groupId = projectToGroup.get(activity.project_id);
+    if (!groupId) return;
+    overdueByGroup.set(groupId, (overdueByGroup.get(groupId) || 0) + 1);
+  });
+
+  const criticalRisksByGroup = new Map<string, number>();
+  risks.forEach((risk: any) => {
+    if (!isOpenStatus(risk.status) || numberValue(risk.score) < 80) return;
+    const groupId = risk.group_id || programToGroup.get(risk.program_id) || projectToGroup.get(risk.project_id);
+    if (!groupId) return;
+    criticalRisksByGroup.set(groupId, (criticalRisksByGroup.get(groupId) || 0) + 1);
   });
 
   return <main className="page">
-    <span className="eyebrow">{w.name}</span><h1>Visão geral</h1><p className="muted">Portfólio, execução e pontos de atenção.</p>
+    <span className="eyebrow">{w.name}</span>
+    <h1>Dashboard consolidado do Capítulo</h1>
+    <p className="muted">Visão executiva consolidada das direções, programas e projetos.</p>
 
     <section className="grid grid-2">
-      <div className="card"><div className="eyebrow">Progresso</div><div className="metric">{pct(progress)}</div></div>
-      <div className="card"><div className="eyebrow">Saúde</div><div style={{fontWeight:900,fontSize:19,marginTop:7}}>{healthLabel(health)}</div></div>
-      <div className="card"><div className="eyebrow">Projetos</div><div className="metric">{projects.length}</div></div>
-      <div className="card"><div className="eyebrow">Atrasadas</div><div className="metric">{overdue}</div></div>
+      <div className="card"><div className="eyebrow">Progresso consolidado</div><div className="metric">{pct(progress)}</div></div>
+      <div className="card"><div className="eyebrow">Status geral</div><div style={{fontWeight:900,fontSize:19,marginTop:7}}>{healthLabel(overallStatus)}</div></div>
+      <div className="card"><div className="eyebrow">Projetos ativos</div><div className="metric">{projects.length}</div></div>
+      <div className="card"><div className="eyebrow">Atividades atrasadas</div><div className="metric">{overdue}</div></div>
     </section>
 
-    <div className="section-title"><h2>Acesso rápido</h2></div>
-    <section className="quick-grid"><Link className="quick" href="/app/groups"><Layers3/><span>Direções</span></Link><Link className="quick" href="/app/programs"><FolderKanban/><span>Programas</span></Link><Link className="quick" href="/app/projects"><ListChecks/><span>Projetos</span></Link><Link className="quick" href="/app/people"><Users/><span>Pessoas</span></Link><Link className="quick" href="/app/management?tab=risks"><ShieldAlert/><span>Riscos</span></Link><Link className="quick" href="/app/management?tab=kpis"><Target/><span>KPIs</span></Link><Link className="quick" href="/app/management?tab=budget"><WalletCards/><span>Finanças</span></Link><Link className="quick" href="/app/ai"><BrainCircuit/><span>IA</span></Link></section>
+    <div className="section-title"><h2>Resumo das Direções</h2><Link href="/app/groups" className="chip">Ver todas</Link></div>
 
-    <div className="section-title"><h2>Direções</h2><Link href="/app/groups" className="chip">Ver tudo</Link></div>
-    <section className="card list">{groups.length===0?<div className="empty">Nenhuma direção criada.</div>:groups.map((group:any)=><Link className="row" href={`/app/group/${group.id}`} key={group.id}><div className="row-main"><div className="row-title">{group.name}</div><div className="row-sub">{programsByGroup.get(group.id)||0} programas · {projectsByGroup.get(group.id)||0} projetos · {pct(group.progress)}</div></div><span className={`chip ${group.health==="off_track"?"danger":group.health==="attention"?"warning":"success"}`}>{healthLabel(group.health)}</span></Link>)}</section>
+    <section className="form">
+      {groups.length===0 ? <div className="card empty">Nenhuma direção criada.</div> : groups.map((group:any) => {
+        const directionPrograms = programsByGroup.get(group.id) || [];
+        const directionProjects = projectsByGroup.get(group.id) || [];
+        const directionProgress = directionProjects.length
+          ? Math.round(average(directionProjects.map((project:any) => numberValue(project.progress))))
+          : directionPrograms.length
+            ? Math.round(average(directionPrograms.map((program:any) => numberValue(program.progress))))
+            : Math.round(numberValue(group.progress));
+        const directionOverdue = overdueByGroup.get(group.id) || 0;
+        const criticalRisks = criticalRisksByGroup.get(group.id) || 0;
+        const status = directionStatus(group.health, directionProgress, directionOverdue, criticalRisks);
 
-    <div className="section-title"><h2>Centro de decisão</h2><Link href="/app/decision-center" className="chip">Ver tudo</Link></div>
-    <section className="card list">{decision.length===0?<div className="empty">Sem alertas críticos.</div>:decision.map((i:any)=><div className="row" key={`${i.item_type}-${i.entity_id}`}><div className="row-main"><div className="row-title">{i.title}</div><div className="row-sub">{i.reason}</div></div><span className={`chip ${i.severity>=90?"danger":i.severity>=70?"warning":""}`}>{i.severity}</span></div>)}</section>
+        return <Link href={`/app/group/${group.id}`} className="card" key={group.id} style={{display:"block"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:900,fontSize:18,lineHeight:1.2}}>{group.name}</div>
+              <div className="row-sub" style={{marginTop:6}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div>
+            </div>
+            <span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`}>{healthLabel(status)}</span>
+          </div>
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16}}>
+            <span className="eyebrow">Progresso</span>
+            <strong>{pct(directionProgress)}</strong>
+          </div>
+          <div style={{height:10,borderRadius:999,background:"var(--soft)",overflow:"hidden",marginTop:7}}>
+            <div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,background:"var(--primary)",borderRadius:999}} />
+          </div>
+
+          <div className="row-sub" style={{marginTop:12}}>
+            {directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos
+          </div>
+        </Link>;
+      })}
+    </section>
   </main>;
 }
