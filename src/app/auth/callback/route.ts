@@ -4,61 +4,56 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
 
-  const code = url.searchParams.get("code");
-  const expected = url.searchParams.get("expected");
+  const provider = url.searchParams.get("provider");
 
-  let next =
-    url.searchParams.get("next") ||
-    "/app/dashboard";
-
-  if (!next.startsWith("/")) {
-    next = "/app/dashboard";
-  }
-
-  if (!code) {
+  if (
+    provider !== "google" &&
+    provider !== "azure"
+  ) {
     return NextResponse.redirect(
-      new URL("/login?error=oauth", url.origin)
+      new URL("/login?error=provider", url.origin)
     );
   }
 
   const supabase = await createClient();
 
-  const { error } =
-    await supabase.auth.exchangeCodeForSession(code);
+  // Encerra a sessão atual no servidor
+  // antes de iniciar outro provedor.
+  await supabase.auth.signOut({
+    scope: "local",
+  });
 
-  if (error) {
-    return NextResponse.redirect(
-      new URL("/login?error=oauth", url.origin)
-    );
-  }
+  const redirectTo =
+    `${url.origin}/auth/callback?expected=${provider}`;
 
-  const { data: userData } =
-    await supabase.auth.getUser();
+  const { data, error } =
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
 
-  const actualProvider =
-    userData.user?.app_metadata?.provider;
+        ...(provider === "azure"
+          ? {
+              scopes: "email",
+            }
+          : {}),
 
-  // Impede que um fluxo iniciado como Google
-  // termine usando silenciosamente uma sessão Microsoft,
-  // ou vice-versa.
-  if (
-    expected &&
-    actualProvider &&
-    actualProvider !== expected
-  ) {
-    await supabase.auth.signOut({
-      scope: "local",
+        // Obriga Google/Microsoft a mostrar
+        // a escolha de conta.
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
     });
 
+  if (error || !data.url) {
     return NextResponse.redirect(
       new URL(
-        `/login?error=provider_mismatch&expected=${expected}`,
+        "/login?error=oauth_start",
         url.origin
       )
     );
   }
 
-  return NextResponse.redirect(
-    new URL(next, url.origin)
-  );
+  return NextResponse.redirect(data.url);
 }
