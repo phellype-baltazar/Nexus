@@ -9,6 +9,7 @@ export function ActivityCreatorV2({organizationId,projectId,members}:{organizati
   const [start,setStart]=useState("");
   const [due,setDue]=useState("");
   const [owner,setOwner]=useState("");
+  const [externalOwner,setExternalOwner]=useState("");
   const [priority,setPriority]=useState("medium");
   const [hours,setHours]=useState("");
   const [msg,setMsg]=useState("");
@@ -16,6 +17,7 @@ export function ActivityCreatorV2({organizationId,projectId,members}:{organizati
 
   async function submit(e:React.FormEvent){
     e.preventDefault();setBusy(true);setMsg("");
+    if(owner==="__external__"&&!externalOwner.trim()){setMsg("Informe o nome do responsável externo.");setBusy(false);return;}
     const s=createClient();
     const {error}=await s.from("activities").insert({
       organization_id:organizationId,
@@ -24,7 +26,8 @@ export function ActivityCreatorV2({organizationId,projectId,members}:{organizati
       description:description.trim()||null,
       start_date:start||null,
       due_date:due||null,
-      primary_owner_id:owner||null,
+      primary_owner_id:owner&&owner!=="__external__"?owner:null,
+      external_owner_name:owner==="__external__"?externalOwner.trim():null,
       priority,
       status:"todo",
       estimated_hours:hours?Number(hours):null,
@@ -41,12 +44,13 @@ export function ActivityCreatorV2({organizationId,projectId,members}:{organizati
       <div className="field"><label>Início</label><input className="input" type="date" value={start} onChange={e=>setStart(e.target.value)}/></div>
       <div className="field"><label>Data prevista</label><input className="input" type="date" value={due} onChange={e=>setDue(e.target.value)} required/></div>
     </div>
-    <div className="field"><label>Responsável</label><select className="select" value={owner} onChange={e=>setOwner(e.target.value)}><option value="">Sem responsável</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email||"Usuário"}</option>)}</select></div>
+    <div className="field"><label>Responsável</label><select className="select" value={owner} onChange={e=>setOwner(e.target.value)}><option value="">Sem responsável</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email||"Usuário"}</option>)}<option value="__external__">Outro / responsável externo</option></select></div>
+    {owner==="__external__"&&<div className="field"><label>Nome do responsável externo</label><input className="input" value={externalOwner} onChange={e=>setExternalOwner(e.target.value)} placeholder="Digite o nome" maxLength={160}/></div>}
     <div className="grid grid-2">
       <div className="field"><label>Prioridade</label><select className="select" value={priority} onChange={e=>setPriority(e.target.value)}><option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option><option value="critical">Crítica</option></select></div>
       <div className="field"><label>Horas estimadas</label><input className="input" type="number" min="0" value={hours} onChange={e=>setHours(e.target.value)}/></div>
     </div>
-    <div className="notice">O status é automático: dentro do prazo = Em andamento; fora do prazo = Atrasada. Depois você pode marcar como Feita ou Cancelada.</div>
+    <div className="notice">O status é automático: dentro do prazo = Em andamento; fora do prazo = Atrasada. A ação pode ser marcada como Feita ou Cancelada e depois reaberta.</div>
     <button className="btn btn-primary btn-block" disabled={busy}>{busy?"Salvando...":"Adicionar atividade"}</button>
     {msg&&<div className="error">{msg}</div>}
   </form>;
