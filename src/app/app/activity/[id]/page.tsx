@@ -78,6 +78,7 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
       completedAt={a.completed_at||null}
       estimatedHours={a.estimated_hours==null?null:Number(a.estimated_hours)}
       baselineEstimatedHours={(a as any).baseline_estimated_hours==null?null:Number((a as any).baseline_estimated_hours)}
+      remainingWorkHours={(a as any).remaining_work_hours==null?null:Number((a as any).remaining_work_hours)}
       effortProfile={(a.effort_profile||"bell") as any}
       shiftedPeakTiming={(a.shifted_peak_timing||null) as any}
       ownerId={a.primary_owner_id||null}
