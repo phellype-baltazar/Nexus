@@ -60,14 +60,17 @@ function valueSize(text:string){
 }
 
 export function ActivityInteractiveDashboard({
-  id,organizationId,userId,progress,status,dueDate,completedAt,ownerId,ownerName,members,comments,legacyDescription,
+  id,organizationId,userId,progress,status,dueDate,completedAt,ownerId,externalOwnerName,ownerName,members,comments,legacyDescription,
 }:{
   id:string;organizationId:string;userId:string;progress:number;status:string;dueDate:string|null;completedAt:string|null;
-  ownerId:string|null;ownerName:string;members:ActivityMember[];comments:ActivityComment[];legacyDescription:string|null;
+  ownerId:string|null;externalOwnerName:string|null;ownerName:string;members:ActivityMember[];comments:ActivityComment[];legacyDescription:string|null;
 }){
+  const terminal=status==="done"||status==="cancelled";
   const [editor,setEditor]=useState<Editor>(null);
   const [progressValue,setProgressValue]=useState(String(Math.round(Number(progress||0))));
-  const [ownerValue,setOwnerValue]=useState(ownerId||"");
+  const [reopenProgress,setReopenProgress]=useState("99");
+  const [ownerValue,setOwnerValue]=useState(externalOwnerName?"__external__":ownerId||"");
+  const [externalOwner,setExternalOwner]=useState(externalOwnerName||"");
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [comment,setComment]=useState("");
@@ -77,7 +80,14 @@ export function ActivityInteractiveDashboard({
     const value=Math.max(0,Math.min(100,Number(progressValue||0)));
     setBusy(true);setMessage("");
     const s=createClient();
-    const {error}=await s.from("activities").update({progress:value}).eq("id",id);
+    const payload:any={progress:value};
+    if(value>=100){
+      payload.progress=100;
+      payload.status="done";
+    }else if(terminal){
+      payload.status="in_progress";
+    }
+    const {error}=await s.from("activities").update(payload).eq("id",id);
     if(error){setMessage(error.message);setBusy(false);return;}
     location.reload();
   }
@@ -90,10 +100,27 @@ export function ActivityInteractiveDashboard({
     location.reload();
   }
 
+  async function reopen(){
+    const value=Math.max(0,Math.min(99,Number(reopenProgress||0)));
+    setBusy(true);setMessage("");
+    const s=createClient();
+    const {error}=await s.from("activities").update({status:"in_progress",progress:value}).eq("id",id);
+    if(error){setMessage(error.message);setBusy(false);return;}
+    location.reload();
+  }
+
   async function saveOwner(){
     setBusy(true);setMessage("");
     const s=createClient();
-    const {error}=await s.from("activities").update({primary_owner_id:ownerValue||null}).eq("id",id);
+    let payload:any;
+    if(ownerValue==="__external__"){
+      const name=externalOwner.trim();
+      if(!name){setMessage("Informe o nome do responsável externo.");setBusy(false);return;}
+      payload={primary_owner_id:null,external_owner_name:name};
+    }else{
+      payload={primary_owner_id:ownerValue||null,external_owner_name:null};
+    }
+    const {error}=await s.from("activities").update(payload).eq("id",id);
     if(error){setMessage(error.message);setBusy(false);return;}
     location.reload();
   }
@@ -115,12 +142,12 @@ export function ActivityInteractiveDashboard({
 
   return <>
     <section style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginTop:14,width:"100%",maxWidth:"100%",overflow:"hidden"}}>
-      <button type="button" className="card" onClick={()=>setEditor("progress")} style={{...cardBase(),cursor:"pointer",border:"1px solid var(--line)",background:"white"}}>
+      <button type="button" className="card" onClick={()=>{setProgressValue(String(Math.round(Number(progress||0))));setMessage("");setEditor("progress")}} style={{...cardBase(),cursor:"pointer",border:"1px solid var(--line)",background:"white"}}>
         <div className="eyebrow" style={{margin:0,textAlign:"center"}}>Progresso</div>
         <div style={{fontSize:valueSize(pText),lineHeight:1,fontWeight:900,textAlign:"center"}}>{pText}</div>
       </button>
 
-      <button type="button" className="card" onClick={()=>setEditor("status")} style={{...cardBase(),cursor:"pointer",border:`1px solid ${visual.border}`,background:visual.bg,color:visual.color}}>
+      <button type="button" className="card" onClick={()=>{setMessage("");setEditor("status")}} style={{...cardBase(),cursor:"pointer",border:`1px solid ${visual.border}`,background:visual.bg,color:visual.color}}>
         <div className="eyebrow" style={{margin:0,textAlign:"center",color:visual.color}}>Status</div>
         <div style={{fontSize:valueSize(visual.label),lineHeight:1.08,fontWeight:900,textAlign:"center",maxWidth:"100%"}}>{visual.label}</div>
       </button>
@@ -130,7 +157,7 @@ export function ActivityInteractiveDashboard({
         <div style={{fontSize:20,lineHeight:1,fontWeight:900,textAlign:"center",whiteSpace:"nowrap"}}>{dateText}</div>
       </div>
 
-      <button type="button" className="card" onClick={()=>setEditor("owner")} style={{...cardBase(),cursor:"pointer",border:"1px solid var(--line)",background:"white"}}>
+      <button type="button" className="card" onClick={()=>{setMessage("");setEditor("owner")}} style={{...cardBase(),cursor:"pointer",border:"1px solid var(--line)",background:"white"}}>
         <div className="eyebrow" style={{margin:0,textAlign:"center"}}>Responsável</div>
         <div style={{fontSize:valueSize(ownerName),lineHeight:1.08,fontWeight:900,textAlign:"center",maxWidth:"100%",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{ownerName}</div>
       </button>
@@ -157,23 +184,29 @@ export function ActivityInteractiveDashboard({
         {editor==="progress"&&<>
           <h2>Atualizar progresso</h2>
           <div className="field"><label>Progresso (%)</label><input className="input" type="number" min="0" max="100" value={progressValue} onChange={e=>setProgressValue(e.target.value)}/></div>
-          <div className="muted" style={{fontSize:12}}>Ao salvar 100%, a ação será marcada automaticamente como feita.</div>
+          <div className="muted" style={{fontSize:12}}>{terminal?"Ao salvar abaixo de 100%, a ação será reaberta automaticamente. Ao salvar 100%, ficará como Feita.":"Ao salvar 100%, a ação será marcada automaticamente como Feita."}</div>
           <button className="btn btn-primary btn-block" disabled={busy} onClick={saveProgress} style={{marginTop:12}}>Salvar</button>
         </>}
 
         {editor==="status"&&<>
           <h2>Atualizar status</h2>
-          <button className="btn btn-primary btn-block" disabled={busy} onClick={()=>saveStatus("done")}>Marcar como feita</button>
-          <button className="btn btn-outline btn-block" disabled={busy} onClick={()=>saveStatus("cancelled")} style={{marginTop:10}}>Cancelar ação</button>
-          <div className="muted" style={{fontSize:12,marginTop:10}}>Feita ou cancelada encerram a ação com 100% de progresso.</div>
+          {status!=="done"&&<button className="btn btn-primary btn-block" disabled={busy} onClick={()=>saveStatus("done")}>Marcar como feita</button>}
+          {status!=="cancelled"&&<button className="btn btn-outline btn-block" disabled={busy} onClick={()=>saveStatus("cancelled")} style={{marginTop:status!=="done"?10:0}}>Cancelar ação</button>}
+          {terminal&&<div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--line)"}}>
+            <div className="field"><label>Progresso ao reabrir (%)</label><input className="input" type="number" min="0" max="99" value={reopenProgress} onChange={e=>setReopenProgress(e.target.value)}/></div>
+            <button className="btn btn-secondary btn-block" disabled={busy} onClick={reopen}>Reabrir ação</button>
+          </div>}
+          <div className="muted" style={{fontSize:12,marginTop:10}}>Ações abertas são classificadas automaticamente como Em andamento ou Atrasada conforme a data prevista.</div>
         </>}
 
         {editor==="owner"&&<>
           <h2>Alterar responsável</h2>
-          <div className="field"><label>Responsável</label><select className="select" value={ownerValue} onChange={e=>setOwnerValue(e.target.value)}><option value="">Sem responsável</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||"Usuário"}</option>)}</select></div>
+          <div className="field"><label>Responsável</label><select className="select" value={ownerValue} onChange={e=>setOwnerValue(e.target.value)}><option value="">Sem responsável</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||"Usuário"}</option>)}<option value="__external__">Outro / responsável externo</option></select></div>
+          {ownerValue==="__external__"&&<div className="field"><label>Nome do responsável externo</label><input className="input" value={externalOwner} onChange={e=>setExternalOwner(e.target.value)} placeholder="Digite o nome" maxLength={160}/></div>}
           <button className="btn btn-primary btn-block" disabled={busy} onClick={saveOwner}>Salvar responsável</button>
         </>}
 
+        {message&&<div className="error" style={{marginTop:10}}>{message}</div>}
         <button className="btn btn-outline btn-block" disabled={busy} onClick={()=>setEditor(null)} style={{marginTop:10}}>Fechar</button>
       </div>
     </div>}
