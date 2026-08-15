@@ -115,36 +115,49 @@ export default async function Page() {
   });
 
   const summaryGridStyle = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 12,
     marginTop: 14,
+    overflow: "hidden",
   };
 
   const summaryCardStyle = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
     height: 122,
-    padding: 20,
+    marginTop: 0,
+    padding: 18,
     display: "grid",
     gridTemplateRows: "38px 1fr",
     alignContent: "start",
     boxSizing: "border-box" as const,
+    overflow: "hidden",
   };
 
   const summaryLabelStyle = {
+    minWidth: 0,
     margin: 0,
-    lineHeight: 1.22,
+    lineHeight: 1.18,
     alignSelf: "start",
+    overflowWrap: "anywhere" as const,
   };
 
   const summaryValueStyle = {
+    minWidth: 0,
     margin: 0,
     alignSelf: "start",
     fontSize: 31,
     lineHeight: 1,
     fontWeight: 900,
+    whiteSpace: "nowrap" as const,
   };
 
-  return <main className="page">
+  return <main className="page" style={{width:"100%",maxWidth:"100%",minWidth:0,overflowX:"hidden"}}>
     <h1 style={{marginBottom:0}}>Visão Geral</h1>
 
     <section style={summaryGridStyle}>
@@ -166,10 +179,10 @@ export default async function Page() {
       </div>
     </section>
 
-    <div className="section-title"><h2>Resumo das Direções</h2><Link href="/app/groups" className="chip">Ver todas</Link></div>
+    <div className="section-title" style={{minWidth:0,width:"100%"}}><h2>Resumo das Direções</h2><Link href="/app/groups" className="chip" style={{flexShrink:0}}>Ver todas</Link></div>
 
-    <section className="form">
-      {groups.length===0 ? <div className="card empty">Nenhuma direção criada.</div> : groups.map((group:any) => {
+    <section className="form" style={{width:"100%",maxWidth:"100%",minWidth:0,overflow:"hidden"}}>
+      {groups.length===0 ? <div className="card empty" style={{marginTop:0,minWidth:0,maxWidth:"100%"}}>Nenhuma direção criada.</div> : groups.map((group:any) => {
         const directionPrograms = programsByGroup.get(group.id) || [];
         const directionProjects = projectsByGroup.get(group.id) || [];
         const directionProgress = directionProjects.length
@@ -181,24 +194,24 @@ export default async function Page() {
         const criticalRisks = criticalRisksByGroup.get(group.id) || 0;
         const status = directionStatus(group.health, directionProgress, directionOverdue, criticalRisks);
 
-        return <Link href={`/app/group/${group.id}`} className="card" key={group.id} style={{display:"block"}}>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-            <div style={{minWidth:0,flex:1}}>
-              <div style={{fontWeight:900,fontSize:18,lineHeight:1.2}}>{group.name}</div>
-              <div className="row-sub" style={{marginTop:6}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div>
+        return <Link href={`/app/group/${group.id}`} className="card" key={group.id} style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,minWidth:0}}>
+            <div style={{minWidth:0,flex:1,overflow:"hidden"}}>
+              <div style={{fontWeight:900,fontSize:18,lineHeight:1.2,overflowWrap:"anywhere"}}>{group.name}</div>
+              <div className="row-sub" style={{marginTop:6,overflowWrap:"anywhere"}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div>
             </div>
             <span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span>
           </div>
 
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,minWidth:0}}>
             <span className="eyebrow">Progresso</span>
-            <strong>{pct(directionProgress)}</strong>
+            <strong style={{flexShrink:0}}>{pct(directionProgress)}</strong>
           </div>
-          <div style={{height:10,borderRadius:999,background:"var(--soft)",overflow:"hidden",marginTop:7}}>
-            <div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,background:"var(--primary)",borderRadius:999}} />
+          <div style={{width:"100%",maxWidth:"100%",height:10,borderRadius:999,background:"var(--soft)",overflow:"hidden",marginTop:7}}>
+            <div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,maxWidth:"100%",background:"var(--primary)",borderRadius:999}} />
           </div>
 
-          <div className="row-sub" style={{marginTop:12}}>
+          <div className="row-sub" style={{marginTop:12,overflowWrap:"anywhere"}}>
             {directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos
           </div>
         </Link>;
