@@ -4,7 +4,8 @@ import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {ActivityCreatorV2} from "@/components/activity-creator-v2";
 import {ProjectScheduleActionsV3} from "@/components/project-schedule-actions-v3";
-import {RiskCreator,KpiCreator,FinanceCreator,StatusReportCreator} from "@/components/project-workspace";
+import {RiskCreator,KpiCreator,StatusReportCreator} from "@/components/project-workspace";
+import {FinanceCreatorV2} from "@/components/finance-creator-v2";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
 import {dateBR,money,pct,healthLabel} from "@/lib/format";
@@ -80,7 +81,17 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
 
     {tab==="kpis"&&<><section className="card list">{!kpis?.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency}</div></div><span className="chip">{k.trend||"—"}</span></div>)}</section><KpiCreator organizationId={w.id} projectId={id}/></>}
 
-    {tab==="finance"&&<><section className="grid grid-2">{["budget","actual","committed","forecast","saving","benefit"].map(key=><div className="card" key={key} style={{marginTop:0,minWidth:0}}><div className="eyebrow">{key}</div><div style={{fontWeight:900,fontSize:17,marginTop:7}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}</section><FinanceCreator organizationId={w.id} projectId={id}/></>}
+    {tab==="finance"&&<>
+      <section className="grid grid-2">
+        {[
+          ["CAPEX Budget","capex_budget"],
+          ["OPEX Budget","opex_budget"],
+          ["Saving (Full Year)","saving_full_year"],
+          ["Saving (Dentro do ano)","saving_in_year"],
+        ].map(([label,key])=><div className="card" key={key} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}
+      </section>
+      <FinanceCreatorV2 organizationId={w.id} projectId={id}/>
+    </>}
 
     {tab==="people"&&<section className="card list">{!members?.length?<div className="empty">Nenhum membro disponível.</div>:members.map((m:any)=><div className="row" key={m.user_id}><div className="row-main"><div className="row-title">{m.full_name||"Usuário"}</div><div className="row-sub">{m.role} · {m.status}</div></div></div>)}</section>}
 
