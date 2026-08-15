@@ -8,10 +8,18 @@ import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
 import {dateBR,money,pct,healthLabel} from "@/lib/format";
 
-function activityStatus(status:string,dueDate:string|null){
-  if(status==="done") return {label:"Feita",className:"success"};
-  if(status==="cancelled") return {label:"Cancelada",className:"danger"};
+function activityStatus(status:string,dueDate:string|null,completedAt:string|null){
   const today=new Date().toISOString().slice(0,10);
+  const completed=completedAt?new Date(completedAt).toISOString().slice(0,10):null;
+  if(status==="cancelled") return {label:"Cancelada",className:""};
+  if(status==="done"){
+    if(dueDate&&completed){
+      if(completed<dueDate)return {label:"Feita antes do prazo",className:"success"};
+      if(completed===dueDate)return {label:"Feita no prazo",className:"success"};
+      return {label:"Feita fora do prazo",className:"danger"};
+    }
+    return {label:"Feita",className:"success"};
+  }
   if(dueDate&&dueDate<today) return {label:"Atrasada",className:"danger"};
   return {label:"Em andamento",className:"warning"};
 }
@@ -56,13 +64,13 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
         {label:"Fim",value:dateBR(p.due_date)},
       ]}/>
       <section className="card" style={{marginTop:12}}><h2>Descrição</h2><p className="muted">{p.description||"Sem descrição."}</p><div className="chip">{p.status}</div> <div className="chip">{p.priority}</div></section>
-      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>r.status==="open").length||0} abertos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
+      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date,a.completed_at).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>r.status==="open").length||0} abertos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
       {!!deps?.length&&<section className="card"><h2>Dependências</h2>{deps.map((d:any)=><div className="row" key={d.id}><div className="row-main"><div className="row-title">{d.projects?.name||"Projeto"}</div><div className="row-sub">{d.dependency_type}</div></div></div>)}</section>}
       <EntityActions type="project" id={p.id} initialTitle={p.name} initialDescription={p.description||""}/>
     </>}
 
     {tab==="activities"&&<>
-      <section className="card list">{!activities?.length?<div className="empty">Nenhuma atividade.</div>:activities.map((a:any)=>{const st=activityStatus(String(a.status),a.due_date||null);return <Link className="row" href={`/app/activity/${a.id}`} key={a.id}><div className="row-main"><div className="row-title">{a.title}</div><div className="row-sub">Prevista {dateBR(a.due_date)} · {a.profiles?.full_name||"Sem responsável"}</div></div><span className={`chip ${st.className}`}>{st.label}</span></Link>})}</section>
+      <section className="card list">{!activities?.length?<div className="empty">Nenhuma atividade.</div>:activities.map((a:any)=>{const st=activityStatus(String(a.status),a.due_date||null,a.completed_at||null);const owner=a.external_owner_name||a.profiles?.full_name||"Sem responsável";return <Link className="row" href={`/app/activity/${a.id}`} key={a.id}><div className="row-main"><div className="row-title">{a.title}</div><div className="row-sub">Prevista {dateBR(a.due_date)} · {owner}</div></div><span className={`chip ${st.className}`}>{st.label}</span></Link>})}</section>
       <ActivityCreatorV2 organizationId={w.id} projectId={id} members={members}/>
     </>}
 
