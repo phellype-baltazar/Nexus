@@ -4,8 +4,9 @@ import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {ActivityCreatorV2} from "@/components/activity-creator-v2";
 import {ProjectScheduleActionsV3} from "@/components/project-schedule-actions-v3";
-import {RiskCreator,KpiCreator,StatusReportCreator} from "@/components/project-workspace";
+import {RiskCreator,KpiCreator} from "@/components/project-workspace";
 import {FinanceCreatorV2} from "@/components/finance-creator-v2";
+import {StatusCheckpointCreator} from "@/components/status-checkpoint-creator";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
 import {dateBR,money,pct,healthLabel} from "@/lib/format";
@@ -24,6 +25,12 @@ function activityStatus(status:string,dueDate:string|null,completedAt:string|nul
   }
   if(dueDate&&dueDate<today) return {label:"Atrasada",className:"danger"};
   return {label:"Em andamento",className:"warning"};
+}
+
+function statusTone(status:string){
+  if(status==="off_track")return {background:"#fff1f2",borderColor:"#fecdd3",chip:"danger"};
+  if(status==="attention")return {background:"#fff7ed",borderColor:"#fed7aa",chip:"warning"};
+  return {background:"#ecfdf5",borderColor:"#a7f3d0",chip:"success"};
 }
 
 export default async function Page({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>}) {
@@ -84,12 +91,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
 
     {tab==="finance"&&<>
       <section className="grid grid-2">
-        {[
-          ["CAPEX Budget","capex_budget"],
-          ["OPEX Budget","opex_budget"],
-          ["Saving (Full Year)","saving_full_year"],
-          ["Saving (Dentro do ano)","saving_in_year"],
-        ].map(([label,key])=><div className="card" key={key} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}
+        {[["CAPEX Budget","capex_budget"],["OPEX Budget","opex_budget"],["Saving (Full Year)","saving_full_year"],["Saving (Dentro do ano)","saving_in_year"]].map(([label,key])=><div className="card" key={key} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}
         {(financialItems||[]).map((item:any)=><div className="card" key={item.id} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{item.label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money(item.amount,item.currency||"BRL")}</div>{item.notes&&<div className="muted" style={{fontSize:11,marginTop:7,overflowWrap:"anywhere"}}>{item.notes}</div>}</div>)}
       </section>
       <FinanceCreatorV2 organizationId={w.id} projectId={id}/>
@@ -99,6 +101,16 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
 
     {tab==="meetings"&&<section className="card list">{!meetings?.length?<div className="empty">Nenhuma reunião vinculada.</div>:meetings.map((m:any)=><div className="row" key={m.id}><div className="row-main"><div className="row-title">{m.title}</div><div className="row-sub">{dateBR(m.starts_at)} · {m.status}</div></div></div>)}</section>}
 
-    {tab==="status"&&<><section className="card list">{!reports?.length?<div className="empty">Nenhum status report.</div>:reports.map((r:any)=><div className="row" key={r.id}><div className="row-main"><div className="row-title">{dateBR(r.period_start)} – {dateBR(r.period_end)}</div><div className="row-sub">{r.accomplishments||"Sem resumo"} · próximos passos: {r.next_steps||"—"}</div></div><span className={`chip ${r.overall_status==="off_track"?"danger":r.overall_status==="attention"?"warning":"success"}`}>{r.overall_status}</span></div>)}</section><StatusReportCreator organizationId={w.id} projectId={id} userId={userId}/></>}
+    {tab==="status"&&<>
+      <section className="form" style={{gap:10}}>{!reports?.length?<div className="card empty">Nenhum checkpoint.</div>:reports.map((r:any)=>{const tone=statusTone(String(r.overall_status));return <div className="card" key={r.id} style={{marginTop:0,background:tone.background,borderColor:tone.borderColor}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:10}}><div><div className="eyebrow">Follow-up</div><div style={{fontWeight:900,fontSize:18}}>{dateBR(r.period_end||r.period_start)}</div></div><span className={`chip ${tone.chip}`}>{healthLabel(r.overall_status)}</span></div>
+        {r.progress!=null&&<div style={{marginBottom:10}}><div className="eyebrow">Progresso</div><strong>{pct(r.progress)}</strong></div>}
+        {r.accomplishments&&<div style={{marginTop:8}}><div className="eyebrow">Entregas / avanços</div><div className="muted">{r.accomplishments}</div></div>}
+        {r.next_steps&&<div style={{marginTop:8}}><div className="eyebrow">Próximos passos</div><div className="muted">{r.next_steps}</div></div>}
+        {r.issues&&<div style={{marginTop:8}}><div className="eyebrow">Problemas / riscos</div><div className="muted">{r.issues}</div></div>}
+        {r.decisions_needed&&<div style={{marginTop:8}}><div className="eyebrow">Decisões necessárias</div><div className="muted">{r.decisions_needed}</div></div>}
+      </div>})}</section>
+      <StatusCheckpointCreator organizationId={w.id} projectId={id} userId={userId}/>
+    </>}
   </main>;
 }
