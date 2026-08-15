@@ -18,7 +18,7 @@ function DeleteButton({onDelete,label="Excluir"}:{onDelete:()=>Promise<void>;lab
   return <button type="button" className="btn btn-block" disabled={busy} onClick={async()=>{if(!window.confirm("Excluir este item? Esta ação removerá o item das visões do projeto."))return;setBusy(true);try{await onDelete();}finally{setBusy(false);}}} style={{marginTop:8,border:"1px solid #fecaca",background:"#fff1f2",color:"#b91c1c",fontWeight:800}}>{busy?"Excluindo...":label}</button>;
 }
 
-const riskStatusLabel=(v:string)=>v==="open"?"Open":v==="monitoring"?"Monitoring":v==="materialized"?"Materialized":v==="closed_not_occurred"?"Closed · did not occur":v==="closed_response_complete"?"Closed · response complete":v==="closed"?"Closed":v;
+const riskStatusLabel=(v:string)=>v==="open"?"Aberto":v==="monitoring"?"Em monitoramento":v==="materialized"?"Materializado":v==="closed_not_occurred"?"Encerrado · não ocorreu":v==="closed_response_complete"?"Encerrado · resposta concluída":v==="closed"?"Encerrado":v;
 const riskStatusClass=(v:string)=>v==="materialized"?"danger":v.startsWith("closed")?"success":v==="monitoring"?"warning":"";
 
 export function RiskListEditor({risks}:{risks:any[]}){
@@ -29,7 +29,7 @@ export function RiskListEditor({risks}:{risks:any[]}){
     <section className="card list">{!risks.length?<div className="empty">Nenhum risco.</div>:risks.map((r:any)=><button type="button" className="row" key={r.id} onClick={()=>setEdit({...r})} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div className="row-main"><div className="row-title">{r.title}</div><div className="row-sub">{r.category||"Sem categoria"} · {r.probability}/{r.impact} · revisão {r.review_date?new Date(`${r.review_date}T12:00:00`).toLocaleDateString("pt-BR"):"—"}</div><div style={{marginTop:7}}><span className={`chip ${riskStatusClass(String(r.status||"open"))}`}>{riskStatusLabel(String(r.status||"open"))}</span></div></div><span className={`chip ${Number(r.score)>=15?"danger":Number(r.score)>=8?"warning":"success"}`}>{r.score??"—"}</span></button>)}</section>
     {edit&&<Sheet title="Atualizar risco" onClose={()=>setEdit(null)}><form className="card form" style={{margin:0}} onSubmit={save}>
       <div className="field"><label>Risco</label><input className="input" value={edit.title||""} onChange={e=>setEdit({...edit,title:e.target.value})} required/></div>
-      <div className="field"><label>Status</label><select className="select" value={edit.status||"open"} onChange={e=>setEdit({...edit,status:e.target.value})}><option value="open">Open</option><option value="monitoring">Monitoring</option><option value="materialized">Materialized (ocorreu)</option><option value="closed_not_occurred">Closed · did not occur</option><option value="closed_response_complete">Closed · response complete</option></select><div className="muted" style={{fontSize:12,marginTop:6}}>Se o risco ocorreu, marque Materialized. Se a janela passou sem ocorrer, feche como Closed · did not occur.</div></div>
+      <div className="field"><label>Status</label><select className="select" value={edit.status||"open"} onChange={e=>setEdit({...edit,status:e.target.value})}><option value="open">Aberto</option><option value="monitoring">Em monitoramento</option><option value="materialized">Materializado (ocorreu)</option><option value="closed_not_occurred">Encerrado · não ocorreu</option><option value="closed_response_complete">Encerrado · resposta concluída</option></select><div className="muted" style={{fontSize:12,marginTop:6}}>Se o risco ocorrer, marque Materializado. Se a janela de exposição passar sem ocorrência, marque Encerrado · não ocorreu.</div></div>
       <div className="grid grid-2"><div className="field"><label>Probabilidade</label><select className="select" value={edit.probability} onChange={e=>setEdit({...edit,probability:e.target.value})}>{["very_low","low","medium","high","very_high"].map(v=><option value={v} key={v}>{v.replace("_"," ")}</option>)}</select></div><div className="field"><label>Impacto</label><select className="select" value={edit.impact} onChange={e=>setEdit({...edit,impact:e.target.value})}>{["very_low","low","medium","high","very_high"].map(v=><option value={v} key={v}>{v.replace("_"," ")}</option>)}</select></div></div>
       <div className="field"><label>Categoria</label><input className="input" value={edit.category||""} onChange={e=>setEdit({...edit,category:e.target.value})}/></div>
       <div className="field"><label>Próxima revisão</label><input className="input" type="date" value={String(edit.review_date||"").slice(0,10)} onChange={e=>setEdit({...edit,review_date:e.target.value})}/></div>
@@ -40,12 +40,24 @@ export function RiskListEditor({risks}:{risks:any[]}){
   </>;
 }
 
+function kpiStatus(k:any){
+  const current=Number(k.current_value), target=Number(k.target);
+  if(k.current_value==null||k.target==null||!Number.isFinite(current)||!Number.isFinite(target)||target===0)return {label:"Sem status",cls:""};
+  const lower=k.direction==="lower_is_better";
+  const met=lower?current<=target:current>=target;
+  if(met)return {label:"On track",cls:"success"};
+  const ratio=lower?target/current:current/target;
+  if(ratio>=0.9)return {label:"Attention",cls:"warning"};
+  return {label:"Off tracking",cls:"danger"};
+}
+const trendLabel=(v:string)=>v==="up"?"↑ Subindo":v==="down"?"↓ Caindo":v==="stable"?"→ Estável":"—";
+
 export function KpiListEditor({kpis}:{kpis:any[]}){
   const [edit,setEdit]=useState<any|null>(null); const [msg,setMsg]=useState("");
   async function save(e:React.FormEvent){e.preventDefault();if(!edit)return;setMsg("");const s=createClient();const {error}=await s.from("kpis").update({name:edit.name.trim(),unit:edit.unit||null,baseline:edit.baseline===""?null:Number(edit.baseline),target:edit.target===""?null:Number(edit.target),current_value:edit.current_value===""?null:Number(edit.current_value),frequency:edit.frequency,direction:edit.direction,trend:edit.trend||null,last_measured_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",edit.id);if(error)setMsg(error.message);else location.reload();}
   async function remove(){if(!edit)return;const s=createClient();const {error}=await s.from("kpis").update({deleted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",edit.id);if(error){setMsg(error.message);return;}location.reload();}
   return <>
-    <section className="card list">{!kpis.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=><button type="button" className="row" key={k.id} onClick={()=>setEdit({...k})} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency==="monthly"?"Mensal":k.frequency==="weekly"?"Semanal":k.frequency==="quarterly"?"Trimestral":"Anual"}</div></div><span className="chip">{k.trend||"—"}</span></button>)}</section>
+    <section className="card list">{!kpis.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=>{const st=kpiStatus(k);return <button type="button" className="row" key={k.id} onClick={()=>setEdit({...k})} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency==="monthly"?"Mensal":k.frequency==="weekly"?"Semanal":k.frequency==="quarterly"?"Trimestral":"Anual"}</div><div className="muted" style={{fontSize:12,marginTop:5}}>{trendLabel(String(k.trend||""))}</div></div><span className={`chip ${st.cls}`}>{st.label}</span></button>})}</section>
     {edit&&<Sheet title="Atualizar KPI" onClose={()=>setEdit(null)}><form className="card form" style={{margin:0}} onSubmit={save}>
       <div className="field"><label>Indicador</label><input className="input" value={edit.name||""} onChange={e=>setEdit({...edit,name:e.target.value})} required/></div>
       <div className="field"><label>Unidade</label><input className="input" value={edit.unit||""} onChange={e=>setEdit({...edit,unit:e.target.value})}/></div>
