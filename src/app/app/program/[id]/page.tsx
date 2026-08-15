@@ -4,6 +4,7 @@ import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
+import {CreateProjectInProgramForm} from "@/components/create-forms";
 import {pct,healthLabel,dateBR,money} from "@/lib/format";
 
 export default async function Page({params}:{params:Promise<{id:string}>}){
@@ -32,7 +33,7 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     <section className="card" style={{marginTop:12}}><h2>Objetivo</h2><p className="muted">{p.objective||p.description||'Sem objetivo registrado.'}</p></section>
 
     <div className="section-title"><h2>Projetos</h2></div>
-    <section className="card list">{!projects?.length?<div className="empty">Nenhum projeto.</div>:projects.map(pr=><Link className="row" href={`/app/project/${pr.id}`} key={pr.id}><div className="row-main"><div className="row-title">{pr.name}</div><div className="row-sub">{dateBR(pr.start_date)} → {dateBR(pr.due_date)} · {pct(pr.progress)}</div></div><span className="row-arrow">›</span></Link>)}</section>
+    <section className="card list">{!projects?.length?<div className="empty">Nenhum projeto. Use o + para adicionar o primeiro.</div>:projects.map(pr=><Link className="row" href={`/app/project/${pr.id}`} key={pr.id}><div className="row-main"><div className="row-title">{pr.name}</div><div className="row-sub">{dateBR(pr.start_date)} → {dateBR(pr.due_date)} · {pct(pr.progress)}</div></div><span className="row-arrow">›</span></Link>)}</section>
 
     <div className="section-title"><h2>Indicadores do programa</h2></div>
     <section className="card list">{!kpis?.length?<div className="empty">Nenhum KPI direto neste programa.</div>:kpis.map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??'—'} {k.unit||''} · Meta {k.target??'—'}</div></div></div>)}</section>
@@ -43,5 +44,6 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     ]}/>
 
     <EntityActions type="program" id={p.id} initialTitle={p.name} initialDescription={p.description||p.objective||''}/>
+    <CreateProjectInProgramForm organizationId={w.id} programId={p.id} programName={p.name}/>
   </main>;
 }
