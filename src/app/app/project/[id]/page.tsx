@@ -45,11 +45,11 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
     s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("budgets").select("*").eq("project_id",id).order("updated_at",{ascending:false}),
-    s.from("project_financial_items").select("id,label,amount,currency,notes,created_at,updated_at").eq("project_id",id).order("created_at",{ascending:false}),
+    s.from("project_financial_items").select("id,label,amount,currency,notes,created_at,updated_at").eq("project_id",id).is("deleted_at",null).order("created_at",{ascending:false}),
     s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("meetings").select("*").eq("project_id",id).is("deleted_at",null).order("starts_at",{ascending:false}),
     s.from("organization_members").select("user_id,role,status,profiles!organization_members_user_id_fkey(full_name)").eq("organization_id",w.id).eq("status","active"),
-    s.from("status_reports").select("*").eq("project_id",id).order("period_end",{ascending:false}),
+    s.from("status_reports").select("*").eq("project_id",id).is("deleted_at",null).order("period_end",{ascending:false}),
     s.from("project_dependencies").select("*,projects!project_dependencies_depends_on_project_id_fkey(name)").eq("project_id",id)
   ]);
 
@@ -81,18 +81,10 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     </>}
 
     {tab==="risks"&&<><RiskListEditor risks={risks||[]}/><RiskCreator organizationId={w.id} projectId={id}/></>}
-
     {tab==="kpis"&&<><KpiListEditor kpis={kpis||[]}/><KpiCreator organizationId={w.id} projectId={id}/></>}
-
-    {tab==="finance"&&<>
-      <FinanceGridEditor organizationId={w.id} projectId={id} budget={budgets?.[0]||null} items={financialItems||[]} currency={budgets?.[0]?.currency||"BRL"}/>
-      <FinanceCreatorV2 organizationId={w.id} projectId={id}/>
-    </>}
-
+    {tab==="finance"&&<><FinanceGridEditor organizationId={w.id} projectId={id} budget={budgets?.[0]||null} items={financialItems||[]} currency={budgets?.[0]?.currency||"BRL"}/><FinanceCreatorV2 organizationId={w.id} projectId={id}/></>}
     {tab==="people"&&<section className="card list">{!members?.length?<div className="empty">Nenhum membro disponível.</div>:members.map((m:any)=><div className="row" key={m.user_id}><div className="row-main"><div className="row-title">{m.full_name||"Usuário"}</div><div className="row-sub">{m.role} · {m.status}</div></div></div>)}</section>}
-
     {tab==="meetings"&&<section className="card list">{!meetings?.length?<div className="empty">Nenhuma reunião vinculada.</div>:meetings.map((m:any)=><div className="row" key={m.id}><div className="row-main"><div className="row-title">{m.title}</div><div className="row-sub">{dateBR(m.starts_at)} · {m.status}</div></div></div>)}</section>}
-
     {tab==="status"&&<><CheckpointListEditor reports={reports||[]}/><StatusCheckpointCreator organizationId={w.id} projectId={id} userId={userId}/></>}
   </main>;
 }
