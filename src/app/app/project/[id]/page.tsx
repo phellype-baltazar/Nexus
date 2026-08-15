@@ -38,11 +38,12 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
   const {data:p}=await s.from("projects").select("*,programs(id,name,groups(id,name))").eq("id",id).is("deleted_at",null).maybeSingle();
   if(!p)return <main className="page"><h1>Projeto</h1><div className="card">Não encontrado ou sem permissão.</div></main>;
 
-  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:benefits},{data:meetings},{data:memberRows},{data:reports},{data:deps}] = await Promise.all([
+  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:financialItems},{data:benefits},{data:meetings},{data:memberRows},{data:reports},{data:deps}] = await Promise.all([
     s.from("activities").select("*,profiles!activities_primary_owner_id_fkey(id,full_name)").eq("project_id",id).is("deleted_at",null).order("due_date",{ascending:true}),
     s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
     s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("budgets").select("*").eq("project_id",id).order("updated_at",{ascending:false}),
+    s.from("project_financial_items").select("id,label,amount,currency,notes,created_at").eq("project_id",id).order("created_at",{ascending:false}),
     s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("meetings").select("*").eq("project_id",id).is("deleted_at",null).order("starts_at",{ascending:false}),
     s.from("organization_members").select("user_id,role,status,profiles!organization_members_user_id_fkey(full_name)").eq("organization_id",w.id).eq("status","active"),
@@ -89,6 +90,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
           ["Saving (Full Year)","saving_full_year"],
           ["Saving (Dentro do ano)","saving_in_year"],
         ].map(([label,key])=><div className="card" key={key} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}
+        {(financialItems||[]).map((item:any)=><div className="card" key={item.id} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{item.label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money(item.amount,item.currency||"BRL")}</div>{item.notes&&<div className="muted" style={{fontSize:11,marginTop:7,overflowWrap:"anywhere"}}>{item.notes}</div>}</div>)}
       </section>
       <FinanceCreatorV2 organizationId={w.id} projectId={id}/>
     </>}
