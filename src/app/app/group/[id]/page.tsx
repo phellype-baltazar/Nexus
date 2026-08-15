@@ -4,6 +4,7 @@ import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
+import {CreateProgramInGroupForm} from "@/components/create-forms";
 import {pct,healthLabel,money} from "@/lib/format";
 
 export default async function Page({params}:{params:Promise<{id:string}>}){
@@ -33,7 +34,7 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     ]}/>
 
     <div className="section-title"><h2>Programas</h2></div>
-    <section className="card list">{!programs?.length?<div className="empty">Nenhum programa.</div>:programs.map(p=><Link className="row" href={`/app/program/${p.id}`} key={p.id}><div className="row-main"><div className="row-title">{p.name}</div><div className="row-sub">{pct(p.progress)} · {healthLabel(p.health)}</div></div><span className="row-arrow">›</span></Link>)}</section>
+    <section className="card list">{!programs?.length?<div className="empty">Nenhum programa. Use o + para adicionar o primeiro.</div>:programs.map(p=><Link className="row" href={`/app/program/${p.id}`} key={p.id}><div className="row-main"><div className="row-title">{p.name}</div><div className="row-sub">{pct(p.progress)} · {healthLabel(p.health)}</div></div><span className="row-arrow">›</span></Link>)}</section>
 
     <div className="section-title"><h2>Indicadores da direção</h2></div>
     <section className="card list">{!kpis?.length?<div className="empty">Nenhum KPI direto nesta direção.</div>:kpis.map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??'—'} {k.unit||''} · Meta {k.target??'—'}</div></div></div>)}</section>
@@ -44,5 +45,6 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     ]}/>
 
     <EntityActions type="group" id={g.id} initialTitle={g.name} initialDescription={g.description||''}/>
+    <CreateProgramInGroupForm organizationId={w.id} groupId={g.id} groupName={g.name}/>
   </main>;
 }
