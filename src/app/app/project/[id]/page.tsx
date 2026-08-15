@@ -3,6 +3,7 @@ import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {ActivityCreatorV2} from "@/components/activity-creator-v2";
+import {ProjectScheduleActions} from "@/components/project-schedule-actions";
 import {RiskCreator,KpiCreator,FinanceCreator,StatusReportCreator} from "@/components/project-workspace";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
@@ -70,6 +71,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     </>}
 
     {tab==="activities"&&<>
+      <ProjectScheduleActions projectId={id}/>
       <section className="card list">{!activities?.length?<div className="empty">Nenhuma atividade.</div>:activities.map((a:any)=>{const st=activityStatus(String(a.status),a.due_date||null,a.completed_at||null);const owner=a.external_owner_name||a.profiles?.full_name||"Sem responsável";return <Link className="row" href={`/app/activity/${a.id}`} key={a.id}><div className="row-main"><div className="row-title">{a.title}</div><div className="row-sub">Prevista {dateBR(a.due_date)} · {owner}</div></div><span className={`chip ${st.className}`}>{st.label}</span></Link>})}</section>
       <ActivityCreatorV2 organizationId={w.id} projectId={id} members={members}/>
     </>}
