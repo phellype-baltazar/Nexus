@@ -114,39 +114,55 @@ export default async function Page() {
     criticalRisksByGroup.set(groupId, (criticalRisksByGroup.get(groupId) || 0) + 1);
   });
 
+  const summaryGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 12,
+    marginTop: 14,
+  };
+
   const summaryCardStyle = {
-    minHeight: 150,
-    display: "flex",
-    flexDirection: "column" as const,
-    justifyContent: "center",
+    height: 122,
+    padding: 20,
+    display: "grid",
+    gridTemplateRows: "38px 1fr",
+    alignContent: "start",
+    boxSizing: "border-box" as const,
   };
 
   const summaryLabelStyle = {
-    minHeight: 42,
-    display: "flex",
-    alignItems: "flex-end",
+    margin: 0,
+    lineHeight: 1.22,
+    alignSelf: "start",
+  };
+
+  const summaryValueStyle = {
+    margin: 0,
+    alignSelf: "start",
+    fontSize: 31,
+    lineHeight: 1,
+    fontWeight: 900,
   };
 
   return <main className="page">
-    <span className="eyebrow">{w.name}</span>
-    <h1>Visão Geral</h1>
+    <h1 style={{marginBottom:0}}>Visão Geral</h1>
 
-    <section className="grid grid-2">
+    <section style={summaryGridStyle}>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Progresso consolidado</div>
-        <div className="metric">{pct(progress)}</div>
+        <div style={summaryValueStyle}>{pct(progress)}</div>
       </div>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Status geral</div>
-        <div className="metric" style={{fontSize:28,lineHeight:1.1}}>{healthLabel(overallStatus)}</div>
+        <div style={{...summaryValueStyle,fontSize:27}}>{healthLabel(overallStatus)}</div>
       </div>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Projetos ativos</div>
-        <div className="metric">{projects.length}</div>
+        <div style={summaryValueStyle}>{projects.length}</div>
       </div>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Atividades atrasadas</div>
-        <div className="metric">{overdue}</div>
+        <div style={summaryValueStyle}>{overdue}</div>
       </div>
     </section>
 
@@ -167,11 +183,11 @@ export default async function Page() {
 
         return <Link href={`/app/group/${group.id}`} className="card" key={group.id} style={{display:"block"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-            <div style={{minWidth:0}}>
+            <div style={{minWidth:0,flex:1}}>
               <div style={{fontWeight:900,fontSize:18,lineHeight:1.2}}>{group.name}</div>
               <div className="row-sub" style={{marginTop:6}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div>
             </div>
-            <span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`}>{healthLabel(status)}</span>
+            <span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span>
           </div>
 
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16}}>
