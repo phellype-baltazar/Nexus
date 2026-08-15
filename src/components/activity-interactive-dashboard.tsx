@@ -50,9 +50,9 @@ export function ActivityInteractiveDashboard(p:Props){
  const profile=PROFILES.find(x=>x.key===effortProfile)||PROFILES[3];
  const futureDays=inclusiveDays(cutoff,forecastEnd);
  const maximumFuture=profileMaxHours(futureDays,effortProfile,timing);
- const futurePeak=Math.max(0,...workloadCurve.filter(x=>x.work_date>=cutoff).map(x=>Number(x.planned_hours||0)));
+ const curvePeak=Math.max(0,...workloadCurve.map(x=>Number(x.planned_hours||0)));
  const scaleSteps=[1,2,4,6,8,10];
- const chartScale=scaleSteps.find(v=>v>=futurePeak*1.12)??10;
+ const chartScale=scaleSteps.find(v=>v>=curvePeak*1.12)??10;
 
  async function update(payload:Record<string,unknown>){setBusy(true);setMessage("");const s=createClient(),{error}=await s.from("activities").update(payload).eq("id",id);if(error){setMessage(error.message);setBusy(false);return}location.reload()}
  async function saveProgress(){const v=Math.max(0,Math.min(100,Number(progressValue||0)));await update(v>=100?{progress:100,status:"done"}:{progress:v,...(terminal?{status:"in_progress"}:{})})}
