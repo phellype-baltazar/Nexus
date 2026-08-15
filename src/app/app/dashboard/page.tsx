@@ -129,32 +129,45 @@ export default async function Page() {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    height: 122,
+    minHeight: 156,
     marginTop: 0,
-    padding: 18,
-    display: "grid",
-    gridTemplateRows: "38px 1fr",
-    alignContent: "start",
+    padding: "18px 14px",
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center" as const,
     boxSizing: "border-box" as const,
     overflow: "hidden",
   };
 
   const summaryLabelStyle = {
     minWidth: 0,
+    maxWidth: "100%",
     margin: 0,
-    lineHeight: 1.18,
-    alignSelf: "start",
+    lineHeight: 1.14,
+    textAlign: "center" as const,
     overflowWrap: "anywhere" as const,
+    wordBreak: "break-word" as const,
   };
 
   const summaryValueStyle = {
     minWidth: 0,
-    margin: 0,
-    alignSelf: "start",
-    fontSize: 31,
-    lineHeight: 1,
+    maxWidth: "100%",
+    marginTop: 14,
+    textAlign: "center" as const,
+    fontSize: "clamp(28px, 8vw, 42px)",
+    lineHeight: 1.02,
     fontWeight: 900,
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "normal" as const,
+    overflowWrap: "anywhere" as const,
+    wordBreak: "break-word" as const,
+  };
+
+  const statusValueStyle = {
+    ...summaryValueStyle,
+    fontSize: "clamp(22px, 6.2vw, 34px)",
+    lineHeight: 1.05,
   };
 
   return <main className="page" style={{width:"100%",maxWidth:"100%",minWidth:0,overflowX:"hidden"}}>
@@ -167,7 +180,7 @@ export default async function Page() {
       </div>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Status geral</div>
-        <div style={{...summaryValueStyle,fontSize:27}}>{healthLabel(overallStatus)}</div>
+        <div style={statusValueStyle}>{healthLabel(overallStatus)}</div>
       </div>
       <div className="card" style={summaryCardStyle}>
         <div className="eyebrow" style={summaryLabelStyle}>Projetos ativos</div>
