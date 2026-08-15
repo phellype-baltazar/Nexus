@@ -7,9 +7,10 @@ import {ProjectScheduleActionsV3} from "@/components/project-schedule-actions-v3
 import {RiskCreator,KpiCreator} from "@/components/project-workspace";
 import {FinanceCreatorV2} from "@/components/finance-creator-v2";
 import {StatusCheckpointCreator} from "@/components/status-checkpoint-creator";
+import {RiskListEditor,KpiListEditor,CheckpointListEditor,FinanceGridEditor} from "@/components/project-live-editors";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
-import {dateBR,money,pct,healthLabel} from "@/lib/format";
+import {dateBR,pct,healthLabel} from "@/lib/format";
 
 function activityStatus(status:string,dueDate:string|null,completedAt:string|null){
   const today=new Date().toISOString().slice(0,10);
@@ -25,12 +26,6 @@ function activityStatus(status:string,dueDate:string|null,completedAt:string|nul
   }
   if(dueDate&&dueDate<today) return {label:"Atrasada",className:"danger"};
   return {label:"Em andamento",className:"warning"};
-}
-
-function statusTone(status:string){
-  if(status==="off_track")return {background:"#fff1f2",borderColor:"#fecdd3",chip:"danger"};
-  if(status==="attention")return {background:"#fff7ed",borderColor:"#fed7aa",chip:"warning"};
-  return {background:"#ecfdf5",borderColor:"#a7f3d0",chip:"success"};
 }
 
 export default async function Page({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>}) {
@@ -50,7 +45,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
     s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("budgets").select("*").eq("project_id",id).order("updated_at",{ascending:false}),
-    s.from("project_financial_items").select("id,label,amount,currency,notes,created_at").eq("project_id",id).order("created_at",{ascending:false}),
+    s.from("project_financial_items").select("id,label,amount,currency,notes,created_at,updated_at").eq("project_id",id).order("created_at",{ascending:false}),
     s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("meetings").select("*").eq("project_id",id).is("deleted_at",null).order("starts_at",{ascending:false}),
     s.from("organization_members").select("user_id,role,status,profiles!organization_members_user_id_fkey(full_name)").eq("organization_id",w.id).eq("status","active"),
@@ -74,7 +69,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
         {label:"Fim",value:dateBR(p.due_date)},
       ]}/>
       <section className="card" style={{marginTop:12}}><h2>Descrição</h2><p className="muted">{p.description||"Sem descrição."}</p><div className="chip">{p.status}</div> <div className="chip">{p.priority}</div></section>
-      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date,a.completed_at).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>r.status==="open").length||0} abertos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
+      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date,a.completed_at).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>["open","monitoring"].includes(String(r.status))).length||0} ativos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
       {!!deps?.length&&<section className="card"><h2>Dependências</h2>{deps.map((d:any)=><div className="row" key={d.id}><div className="row-main"><div className="row-title">{d.projects?.name||"Projeto"}</div><div className="row-sub">{d.dependency_type}</div></div></div>)}</section>}
       <EntityActions type="project" id={p.id} initialTitle={p.name} initialDescription={p.description||""}/>
     </>}
@@ -85,15 +80,12 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
       <ActivityCreatorV2 organizationId={w.id} projectId={id} members={members}/>
     </>}
 
-    {tab==="risks"&&<><section className="card list">{!risks?.length?<div className="empty">Nenhum risco.</div>:risks.map((r:any)=><div className="row" key={r.id}><div className="row-main"><div className="row-title">{r.title}</div><div className="row-sub">{r.category||"Sem categoria"} · {r.probability}/{r.impact} · revisão {dateBR(r.review_date)}</div></div><span className="chip warning">{r.score??"—"}</span></div>)}</section><RiskCreator organizationId={w.id} projectId={id}/></>}
+    {tab==="risks"&&<><RiskListEditor risks={risks||[]}/><RiskCreator organizationId={w.id} projectId={id}/></>}
 
-    {tab==="kpis"&&<><section className="card list">{!kpis?.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency}</div></div><span className="chip">{k.trend||"—"}</span></div>)}</section><KpiCreator organizationId={w.id} projectId={id}/></>}
+    {tab==="kpis"&&<><KpiListEditor kpis={kpis||[]}/><KpiCreator organizationId={w.id} projectId={id}/></>}
 
     {tab==="finance"&&<>
-      <section className="grid grid-2">
-        {[["CAPEX Budget","capex_budget"],["OPEX Budget","opex_budget"],["Saving (Full Year)","saving_full_year"],["Saving (Dentro do ano)","saving_in_year"]].map(([label,key])=><div className="card" key={key} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money((budgets?.[0] as any)?.[key],budgets?.[0]?.currency||"BRL")}</div></div>)}
-        {(financialItems||[]).map((item:any)=><div className="card" key={item.id} style={{marginTop:0,minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",overflow:"hidden"}}><div className="eyebrow" style={{overflowWrap:"anywhere"}}>{item.label}</div><div style={{fontWeight:900,fontSize:"clamp(16px,4.6vw,22px)",lineHeight:1.05,marginTop:8,overflowWrap:"anywhere"}}>{money(item.amount,item.currency||"BRL")}</div>{item.notes&&<div className="muted" style={{fontSize:11,marginTop:7,overflowWrap:"anywhere"}}>{item.notes}</div>}</div>)}
-      </section>
+      <FinanceGridEditor organizationId={w.id} projectId={id} budget={budgets?.[0]||null} items={financialItems||[]} currency={budgets?.[0]?.currency||"BRL"}/>
       <FinanceCreatorV2 organizationId={w.id} projectId={id}/>
     </>}
 
@@ -101,16 +93,6 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
 
     {tab==="meetings"&&<section className="card list">{!meetings?.length?<div className="empty">Nenhuma reunião vinculada.</div>:meetings.map((m:any)=><div className="row" key={m.id}><div className="row-main"><div className="row-title">{m.title}</div><div className="row-sub">{dateBR(m.starts_at)} · {m.status}</div></div></div>)}</section>}
 
-    {tab==="status"&&<>
-      <section className="form" style={{gap:10}}>{!reports?.length?<div className="card empty">Nenhum checkpoint.</div>:reports.map((r:any)=>{const tone=statusTone(String(r.overall_status));return <div className="card" key={r.id} style={{marginTop:0,background:tone.background,borderColor:tone.borderColor}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:10}}><div><div className="eyebrow">Follow-up</div><div style={{fontWeight:900,fontSize:18}}>{dateBR(r.period_end||r.period_start)}</div></div><span className={`chip ${tone.chip}`}>{healthLabel(r.overall_status)}</span></div>
-        {r.progress!=null&&<div style={{marginBottom:10}}><div className="eyebrow">Progresso</div><strong>{pct(r.progress)}</strong></div>}
-        {r.accomplishments&&<div style={{marginTop:8}}><div className="eyebrow">Entregas / avanços</div><div className="muted">{r.accomplishments}</div></div>}
-        {r.next_steps&&<div style={{marginTop:8}}><div className="eyebrow">Próximos passos</div><div className="muted">{r.next_steps}</div></div>}
-        {r.issues&&<div style={{marginTop:8}}><div className="eyebrow">Problemas / riscos</div><div className="muted">{r.issues}</div></div>}
-        {r.decisions_needed&&<div style={{marginTop:8}}><div className="eyebrow">Decisões necessárias</div><div className="muted">{r.decisions_needed}</div></div>}
-      </div>})}</section>
-      <StatusCheckpointCreator organizationId={w.id} projectId={id} userId={userId}/>
-    </>}
+    {tab==="status"&&<><CheckpointListEditor reports={reports||[]}/><StatusCheckpointCreator organizationId={w.id} projectId={id} userId={userId}/></>}
   </main>;
 }
