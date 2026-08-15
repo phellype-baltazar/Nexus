@@ -26,9 +26,17 @@ export function EntityActions({type,id,initialTitle,initialDescription}:{type:En
 
   async function archive(){
     if(!confirm(`Arquivar "${title}"? O histórico será preservado.`)) return;
-    setBusy(true); const s=createClient();
+    setBusy(true); setMsg(""); const s=createClient();
     const field=type==="activity"?"deleted_at":"archived_at";
     const {error}=await s.from(c.table).update({[field]:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);
+    if(error){setMsg(error.message);setBusy(false);return}
+    r.push(c.back);r.refresh();
+  }
+
+  async function remove(){
+    if(!confirm(`Excluir "${title}"? O item será removido das visões do Nexus, mantendo o histórico técnico para segurança.`)) return;
+    setBusy(true); setMsg(""); const s=createClient();
+    const {error}=await s.from(c.table).update({deleted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);
     if(error){setMsg(error.message);setBusy(false);return}
     r.push(c.back);r.refresh();
   }
@@ -45,7 +53,8 @@ export function EntityActions({type,id,initialTitle,initialDescription}:{type:En
   return <section className="card form">
     <h2>Ações</h2>
     <button className="btn btn-primary btn-block" onClick={()=>setEditing(true)}>Editar</button>
-    <button className="btn btn-outline btn-block" onClick={archive} disabled={busy}>Arquivar</button>
+    {type!=="activity"&&<button className="btn btn-outline btn-block" onClick={archive} disabled={busy}>Arquivar</button>}
+    <button type="button" className="btn btn-block" onClick={remove} disabled={busy} style={{border:"1px solid #fecaca",background:"#fff1f2",color:"#b91c1c",fontWeight:800}}>Excluir</button>
     {msg&&<div className="error">{msg}</div>}
   </section>;
 }
