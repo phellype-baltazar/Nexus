@@ -42,7 +42,11 @@ export function ActivityInteractiveDashboard(p:Props){
  const futurePlanned=useMemo(()=>terminal?0:workloadCurve.filter(x=>x.work_date>=cutoff).reduce((s,x)=>s+Number(x.planned_hours||0),0),[workloadCurve,terminal,cutoff]);
  const considered=useMemo(()=>workloadCurve.reduce((s,x)=>s+Number(x.planned_hours||0),0),[workloadCurve]);
  const plannedHours=Number(baselineEstimatedHours??estimatedHours??0);
- const theoreticalRemaining=terminal?0:plannedHours*(1-Math.max(0,Math.min(100,Number(progress||0)))/100);
+ const progressRatio=Math.max(0,Math.min(100,Number(progress||0)))/100;
+ const completedEquivalentHours=plannedHours*progressRatio;
+ const forecastTotalHours=terminal?plannedHours:completedEquivalentHours+futurePlanned;
+ const forecastOverPlan=forecastTotalHours>plannedHours+.001;
+ const theoreticalRemaining=terminal?0:plannedHours*(1-progressRatio);
  const profile=PROFILES.find(x=>x.key===effortProfile)||PROFILES[3];
  const futureDays=inclusiveDays(cutoff,forecastEnd);
  const maximumFuture=profileMaxHours(futureDays,effortProfile,timing);
@@ -68,7 +72,7 @@ export function ActivityInteractiveDashboard(p:Props){
    <div className="card" style={{...card(),border:"1px solid var(--line)"}}><div className="eyebrow">Data de início</div><strong style={{fontSize:19,whiteSpace:"nowrap"}}>{dateBR(startDate)}</strong><span className="muted" style={{fontSize:10}}>Baseline</span></div>
    <div className="card" style={{...card(),border:"1px solid var(--line)"}}><div className="eyebrow">Data prevista</div><strong style={{fontSize:19,whiteSpace:"nowrap"}}>{dateBR(dueDate)}</strong><span className="muted" style={{fontSize:10}}>Baseline imutável</span></div>
    <button className="card" onClick={()=>setEditor("owner")} style={{...card(),border:"1px solid var(--line)",background:"white"}}><div className="eyebrow">Responsável</div><strong style={{fontSize:size(ownerName),lineHeight:1.08,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{ownerName}</strong></button>
-   <div className="card" style={{...card(),border:"1px solid var(--line)"}}><div className="eyebrow">Horas planejadas</div><strong style={{fontSize:29}}>{fmtHours(plannedHours)}</strong><span className="muted" style={{fontSize:10}}>Baseline imutável</span></div>
+   <div className="card" style={{...card(),border:`1px solid ${forecastOverPlan?"#f3c6ce":"var(--line)"}`,background:forecastOverPlan?"#fff7f8":"white"}}><div className="eyebrow">Plan / Prev</div><div style={{display:"flex",alignItems:"baseline",justifyContent:"center",gap:6,whiteSpace:"nowrap"}}><strong style={{fontSize:22}}>{fmtHours(plannedHours)}</strong><span className="muted" style={{fontSize:16}}>/</span><strong style={{fontSize:22,color:forecastOverPlan?"#b42318":"var(--text)"}}>{fmtHours(forecastTotalHours)}</strong></div><span style={{fontSize:10,color:forecastOverPlan?"#b42318":"var(--muted)",fontWeight:forecastOverPlan?800:500}}>Plan fixo · Prev atual</span></div>
   </section>
 
   <section className="card" style={{marginTop:12}}>
