@@ -1,0 +1,40 @@
+name: Patch activity Plan Prev
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-activity-plan-prev.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Plan/Prev card
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/components/activity-interactive-dashboard.tsx')
+          s = p.read_text()
+          old = ''' const plannedHours=Number(baselineEstimatedHours??estimatedHours??0);\n const theoreticalRemaining=terminal?0:plannedHours*(1-Math.max(0,Math.min(100,Number(progress||0)))/100);'''
+          new = ''' const plannedHours=Number(baselineEstimatedHours??estimatedHours??0);\n const progressRatio=Math.max(0,Math.min(100,Number(progress||0)))/100;\n const completedEquivalentHours=plannedHours*progressRatio;\n const forecastTotalHours=terminal?plannedHours:completedEquivalentHours+futurePlanned;\n const forecastOverPlan=forecastTotalHours>plannedHours+.001;\n const theoreticalRemaining=terminal?0:plannedHours*(1-progressRatio);'''
+          if old not in s:
+              raise SystemExit('calculation anchor not found')
+          s = s.replace(old, new, 1)
+          old_card = '''   <div className="card" style={{...card(),border:"1px solid var(--line)"}}><div className="eyebrow">Horas planejadas</div><strong style={{fontSize:29}}>{fmtHours(plannedHours)}</strong><span className="muted" style={{fontSize:10}}>Baseline imutável</span></div>'''
+          new_card = '''   <div className="card" style={{...card(),border:`1px solid ${forecastOverPlan?"#f3c6ce":"var(--line)"}`,background:forecastOverPlan?"#fff7f8":"white"}}><div className="eyebrow">Plan / Prev</div><div style={{display:"flex",alignItems:"baseline",justifyContent:"center",gap:6,whiteSpace:"nowrap"}}><strong style={{fontSize:22}}>{fmtHours(plannedHours)}</strong><span className="muted" style={{fontSize:16}}>/</span><strong style={{fontSize:22,color:forecastOverPlan?"#b42318":"var(--text)"}}>{fmtHours(forecastTotalHours)}</strong></div><span style={{fontSize:10,color:forecastOverPlan?"#b42318":"var(--muted)",fontWeight:forecastOverPlan?800:500}}>Plan fixo · Prev atual</span></div>'''
+          if old_card not in s:
+              raise SystemExit('card anchor not found')
+          s = s.replace(old_card, new_card, 1)
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/activity-interactive-dashboard.tsx
+          git commit -m "feat: show Plan Prev workload variance on activity" || exit 0
+          git push
