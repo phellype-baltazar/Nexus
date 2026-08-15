@@ -41,30 +41,28 @@ export function RiskListEditor({risks}:{risks:any[]}){
 }
 
 function kpiStatus(k:any){
-  const current=Number(k.current_value), target=Number(k.target);
-  if(k.current_value==null||k.target==null||!Number.isFinite(current)||!Number.isFinite(target)||target===0)return {label:"Sem status",cls:""};
+  const trend=String(k.trend||"");
+  if(!trend)return {label:"Sem status",cls:"",trendLabel:"—"};
+  if(trend==="stable")return {label:"Estável",cls:"warning",trendLabel:"→ Estável"};
   const lower=k.direction==="lower_is_better";
-  const met=lower?current<=target:current>=target;
-  if(met)return {label:"On track",cls:"success"};
-  const ratio=lower?target/current:current/target;
-  if(ratio>=0.9)return {label:"Attention",cls:"warning"};
-  return {label:"Off tracking",cls:"danger"};
+  const favorable=(trend==="up"&&!lower)||(trend==="down"&&lower);
+  if(favorable)return {label:"On tracking",cls:"success",trendLabel:trend==="up"?"↑ Subindo":"↓ Caindo"};
+  return {label:"Off tracking",cls:"danger",trendLabel:trend==="up"?"↑ Subindo":"↓ Caindo"};
 }
-const trendLabel=(v:string)=>v==="up"?"↑ Subindo":v==="down"?"↓ Caindo":v==="stable"?"→ Estável":"—";
 
 export function KpiListEditor({kpis}:{kpis:any[]}){
   const [edit,setEdit]=useState<any|null>(null); const [msg,setMsg]=useState("");
   async function save(e:React.FormEvent){e.preventDefault();if(!edit)return;setMsg("");const s=createClient();const {error}=await s.from("kpis").update({name:edit.name.trim(),unit:edit.unit||null,baseline:edit.baseline===""?null:Number(edit.baseline),target:edit.target===""?null:Number(edit.target),current_value:edit.current_value===""?null:Number(edit.current_value),frequency:edit.frequency,direction:edit.direction,trend:edit.trend||null,last_measured_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",edit.id);if(error)setMsg(error.message);else location.reload();}
   async function remove(){if(!edit)return;const s=createClient();const {error}=await s.from("kpis").update({deleted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",edit.id);if(error){setMsg(error.message);return;}location.reload();}
   return <>
-    <section className="card list">{!kpis.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=>{const st=kpiStatus(k);return <button type="button" className="row" key={k.id} onClick={()=>setEdit({...k})} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency==="monthly"?"Mensal":k.frequency==="weekly"?"Semanal":k.frequency==="quarterly"?"Trimestral":"Anual"}</div><div className="muted" style={{fontSize:12,marginTop:5}}>{trendLabel(String(k.trend||""))}</div></div><span className={`chip ${st.cls}`}>{st.label}</span></button>})}</section>
+    <section className="card list">{!kpis.length?<div className="empty">Nenhum KPI.</div>:kpis.map((k:any)=>{const st=kpiStatus(k);return <button type="button" className="row" key={k.id} onClick={()=>setEdit({...k})} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Atual {k.current_value??"—"} {k.unit||""} · Meta {k.target??"—"} · {k.frequency==="monthly"?"Mensal":k.frequency==="weekly"?"Semanal":k.frequency==="quarterly"?"Trimestral":"Anual"}</div><div className={`chip ${st.cls}`} style={{marginTop:7}}>{st.trendLabel}</div></div><span className={`chip ${st.cls}`}>{st.label}</span></button>})}</section>
     {edit&&<Sheet title="Atualizar KPI" onClose={()=>setEdit(null)}><form className="card form" style={{margin:0}} onSubmit={save}>
       <div className="field"><label>Indicador</label><input className="input" value={edit.name||""} onChange={e=>setEdit({...edit,name:e.target.value})} required/></div>
       <div className="field"><label>Unidade</label><input className="input" value={edit.unit||""} onChange={e=>setEdit({...edit,unit:e.target.value})}/></div>
       <div className="grid grid-2"><div className="field"><label>Baseline</label><input className="input" type="number" step="any" value={edit.baseline??""} onChange={e=>setEdit({...edit,baseline:e.target.value})}/></div><div className="field"><label>Meta</label><input className="input" type="number" step="any" value={edit.target??""} onChange={e=>setEdit({...edit,target:e.target.value})}/></div></div>
       <div className="field"><label>Valor atual</label><input className="input" type="number" step="any" value={edit.current_value??""} onChange={e=>setEdit({...edit,current_value:e.target.value})}/></div>
-      <div className="grid grid-2"><div className="field"><label>Periodicidade</label><select className="select" value={edit.frequency||"monthly"} onChange={e=>setEdit({...edit,frequency:e.target.value})}><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div><div className="field"><label>Direção</label><select className="select" value={edit.direction||"higher_is_better"} onChange={e=>setEdit({...edit,direction:e.target.value})}><option value="higher_is_better">Maior é melhor</option><option value="lower_is_better">Menor é melhor</option></select></div></div>
-      <div className="field"><label>Tendência</label><select className="select" value={edit.trend||""} onChange={e=>setEdit({...edit,trend:e.target.value})}><option value="">—</option><option value="up">↑ Subindo</option><option value="stable">→ Estável</option><option value="down">↓ Caindo</option></select></div>
+      <div className="grid grid-2"><div className="field"><label>Periodicidade</label><select className="select" value={edit.frequency||"monthly"} onChange={e=>setEdit({...edit,frequency:e.target.value})}><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div><div className="field"><label>Direção desejada</label><select className="select" value={edit.direction||"higher_is_better"} onChange={e=>setEdit({...edit,direction:e.target.value})}><option value="higher_is_better">Maior é melhor</option><option value="lower_is_better">Menor é melhor</option></select></div></div>
+      <div className="field"><label>Tendência</label><select className="select" value={edit.trend||""} onChange={e=>setEdit({...edit,trend:e.target.value})}><option value="">—</option><option value="up">↑ Subindo</option><option value="stable">→ Estável</option><option value="down">↓ Caindo</option></select><div className="muted" style={{fontSize:12,marginTop:6}}>O status é definido somente pela tendência em relação à direção desejada. Se estiver estável, o status será Estável.</div></div>
       <button className="btn btn-primary btn-block">Salvar KPI</button><DeleteButton onDelete={remove}/>{msg&&<div className="error">{msg}</div>}
     </form></Sheet>}
   </>;
