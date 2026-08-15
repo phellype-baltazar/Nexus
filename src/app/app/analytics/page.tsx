@@ -1,0 +1,8 @@
+import {createClient} from "@/lib/supabase/server";
+import {getCurrentWorkspace} from "@/lib/workspace";
+
+export default async function Page(){
+  const s=await createClient();const w=await getCurrentWorkspace();if(!w)return null;
+  const {data}=await s.rpc("rpc_usage_metrics",{p_organization_id:w.id,p_days:30});const m=(data||{}) as any;const paths=Array.isArray(m.top_paths)?m.top_paths:[];const events=Array.isArray(m.top_events)?m.top_events:[];
+  return <main className="page"><span className="eyebrow">Produto</span><h1>Uso do Nexus</h1><p className="muted">Telemetria real dos últimos 30 dias. Os dados da simulação não são misturados aqui.</p><section className="grid grid-2"><div className="card" style={{marginTop:0,textAlign:"center"}}><div className="eyebrow">Eventos</div><strong style={{fontSize:28}}>{m.events||0}</strong></div><div className="card" style={{marginTop:0,textAlign:"center"}}><div className="eyebrow">Usuários ativos</div><strong style={{fontSize:28}}>{m.active_users||0}</strong></div></section><div className="section-title"><h2>Telas mais usadas</h2></div><section className="card list">{!paths.length?<div className="empty">A telemetria começou agora. Os dados aparecerão conforme o app for usado.</div>:paths.map((x:any)=><div className="row" key={String(x.path)}><div className="row-main"><div className="row-title">{x.path||"—"}</div></div><span className="chip">{x.events}</span></div>)}</section><div className="section-title"><h2>Eventos</h2></div><section className="card list">{events.map((x:any)=><div className="row" key={String(x.event_name)}><div className="row-main"><div className="row-title">{x.event_name}</div></div><span className="chip">{x.events}</span></div>)}</section></main>;
+}
