@@ -33,7 +33,8 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
 
   const members=(memberRows||[]).map((m:any)=>({user_id:m.user_id,full_name:m.profiles?.full_name||null}));
   const comments=(commentRows||[]).map((c:any)=>({id:c.id,body:c.body,created_at:c.created_at,author_name:c.profiles?.full_name||"Usuário"}));
-  const ownerName=(a as any).profiles?.full_name||"Sem responsável";
+  const externalOwnerName=String((a as any).external_owner_name||"").trim()||null;
+  const ownerName=externalOwnerName||(a as any).profiles?.full_name||"Sem responsável";
   const project=(a as any).projects;
   const program=project?.programs;
   const group=program?.groups;
@@ -52,6 +53,7 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
       dueDate={a.due_date||null}
       completedAt={a.completed_at||null}
       ownerId={a.primary_owner_id||null}
+      externalOwnerName={externalOwnerName}
       ownerName={ownerName}
       members={members}
       comments={comments}
