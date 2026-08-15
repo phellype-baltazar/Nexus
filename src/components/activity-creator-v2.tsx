@@ -105,7 +105,7 @@ export function ActivityCreatorV2({organizationId,projectId,members}:{organizati
     >+</button>
 
     {open&&<div role="dialog" aria-modal="true" aria-label="Nova atividade" onClick={()=>!busy&&setOpen(false)} style={{position:"fixed",inset:0,zIndex:100,background:"rgba(15,23,42,.42)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:620,maxHeight:"92dvh",overflowY:"auto",background:"var(--background, #f8fafc)",borderRadius:"26px 26px 0 0",padding:"10px 16px `calc(24px + env(safe-area-inset-bottom, 0px))`",boxShadow:"0 -18px 50px rgba(15,23,42,.18)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:620,maxHeight:"92dvh",overflowY:"auto",background:"var(--background, #f8fafc)",borderRadius:"26px 26px 0 0",padding:"10px 16px calc(24px + env(safe-area-inset-bottom, 0px))",boxShadow:"0 -18px 50px rgba(15,23,42,.18)"}}>
         <div style={{width:44,height:5,borderRadius:999,background:"#cbd5e1",margin:"2px auto 14px"}}/>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:8}}>
           <h2 style={{margin:0}}>Nova atividade</h2>
