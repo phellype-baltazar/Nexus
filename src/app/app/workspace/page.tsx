@@ -3,7 +3,22 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, getMyRole } from "@/lib/workspace";
 import { WorkspaceActions } from "@/components/workspace-actions";
-import {roleLabel} from "@/components/member-role-editor";
+
+const ROLE_LABELS: Record<string, string> = {
+  organization_owner: "Owner",
+  organization_admin: "Owner",
+  group_admin: "Direção Manager",
+  program_manager: "Program Manager",
+  project_manager: "Project Manager",
+  member: "Time",
+  viewer: "Visualizador",
+  guest: "Convidado",
+};
+
+function roleLabel(role?: string | null) {
+  if (!role) return "Membro";
+  return ROLE_LABELS[role] || role;
+}
 
 async function switchWorkspace(formData: FormData) {
   "use server";
