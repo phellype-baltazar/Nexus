@@ -1,8 +1,48 @@
+import type {Metadata} from "next";
 import {redirect} from "next/navigation";
 import {OnboardingV2} from "@/components/onboarding-v2";
 import {createClient} from "@/lib/supabase/server";
 
 const ROLE_LABELS:Record<string,string>={program_manager:"Program Manager",project_manager:"Project Manager",member:"Time"};
+
+async function getInvitePreview(invite:string){
+  if(!invite)return null;
+  const s=await createClient();
+  const {data}=await s.rpc("rpc_workspace_invite_preview",{p_code:invite});
+  return data||null;
+}
+
+export async function generateMetadata({searchParams}:{searchParams:Promise<{invite?:string}>}):Promise<Metadata>{
+  const {invite=""}=await searchParams;
+  if(!invite)return{};
+
+  const preview:any=await getInvitePreview(invite);
+  if(!preview)return{};
+
+  const displayName=preview?.display_name||preview?.organization_name||"Workspace";
+  const description=`Convite para solicitar acesso ao workspace ${displayName} no Nexus.`;
+  const logo=preview?.logo_url||undefined;
+
+  return{
+    title:`Convite · ${displayName}`,
+    description,
+    applicationName:displayName,
+    icons:logo?{icon:logo,shortcut:logo,apple:logo}:undefined,
+    openGraph:{
+      title:`Convite · ${displayName}`,
+      description,
+      type:"website",
+      siteName:displayName,
+      images:logo?[{url:logo,alt:`Logo ${displayName}`}]:undefined,
+    },
+    twitter:{
+      card:logo?"summary_large_image":"summary",
+      title:`Convite · ${displayName}`,
+      description,
+      images:logo?[logo]:undefined,
+    },
+  };
+}
 
 export default async function Page({searchParams}:{searchParams:Promise<{invite?:string}>}){
   const {invite=""}=await searchParams;
@@ -10,8 +50,7 @@ export default async function Page({searchParams}:{searchParams:Promise<{invite?
   let preview:any=null;
 
   if(invite){
-    const {data}=await s.rpc("rpc_workspace_invite_preview",{p_code:invite});
-    preview=data;
+    preview=await getInvitePreview(invite);
     const {data:claims}=await s.auth.getClaims();
     const userId=String(claims?.claims?.sub||"");
     if(!userId) redirect(`/login?next=${encodeURIComponent(`/onboarding?invite=${invite}`)}`);
