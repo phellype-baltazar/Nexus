@@ -53,13 +53,28 @@ export default async function Page() {
         const directionProgress = directionProjects.length ? Math.round(average(directionProjects.map((project:any) => numberValue(project.progress)))) : directionPrograms.length ? Math.round(average(directionPrograms.map((program:any) => numberValue(program.progress)))) : Math.round(numberValue(group.progress));
         const directionOverdue = overdueByGroup.get(group.id) || 0, criticalRisks = criticalRisksByGroup.get(group.id) || 0, status = directionStatus(group.health, directionProgress, directionOverdue, criticalRisks), tone=statusTone(status);
         return <div className="card" key={group.id} style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,overflow:"hidden",background:tone.background,borderColor:tone.borderColor}}>
-          <Link href={`/app/group/${group.id}`} style={{display:"block",color:"inherit",textDecoration:"none"}}>
-            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,minWidth:0}}><div style={{minWidth:0,flex:1,overflow:"hidden"}}><div style={{fontWeight:900,fontSize:18,lineHeight:1.2,overflowWrap:"anywhere"}}>{group.name}</div><div className="row-sub" style={{marginTop:6,overflowWrap:"anywhere"}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div></div><span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span></div>
+          <Link href={`/app/group/${group.id}`} style={{display:"block",color:"inherit",textDecoration:"none"}} aria-label={`Abrir ${group.name}`}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,minWidth:0}}>
+              <div style={{minWidth:0,flex:1,overflow:"hidden"}}>
+                <div style={{fontWeight:900,fontSize:18,lineHeight:1.2,overflowWrap:"anywhere"}}>{group.name}</div>
+                <div className="row-sub" style={{marginTop:6,overflowWrap:"anywhere"}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                <span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span>
+                <span aria-hidden="true" style={{fontSize:30,lineHeight:1,color:"var(--primary, #5b21b6)",fontWeight:500,marginTop:-2}}>›</span>
+              </div>
+            </div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,minWidth:0}}><span className="eyebrow">Progresso</span><strong style={{flexShrink:0}}>{pct(directionProgress)}</strong></div>
             <div style={{width:"100%",maxWidth:"100%",height:10,borderRadius:999,background:"rgba(255,255,255,.65)",overflow:"hidden",marginTop:7}}><div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,maxWidth:"100%",background:tone.color,borderRadius:999}} /></div>
             <div className="row-sub" style={{marginTop:12,overflowWrap:"anywhere"}}>{directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos</div>
           </Link>
-          <a href={`/app/group/${group.id}/status-pdf`} className="btn btn-primary btn-block" style={{marginTop:16}}>Gerar Status</a>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:14,paddingTop:13,borderTop:"1px dashed rgba(100,116,139,.28)",minWidth:0}}>
+            <span className="row-sub" style={{fontSize:12,minWidth:0,overflowWrap:"anywhere"}}>Toque no card para abrir</span>
+            <a href={`/app/group/${group.id}/status-pdf`} aria-label={`Gerar relatório de status de ${group.name}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,minHeight:38,padding:"8px 12px",borderRadius:12,border:"1px solid var(--primary, #5b21b6)",color:"var(--primary, #5b21b6)",background:"rgba(255,255,255,.72)",textDecoration:"none",fontSize:13,fontWeight:800,whiteSpace:"nowrap",flexShrink:0}}>
+              <span aria-hidden="true" style={{fontSize:15,lineHeight:1}}>▤</span>
+              <span>Relatório de status</span>
+            </a>
+          </div>
         </div>;
       })}
     </section>
