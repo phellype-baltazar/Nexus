@@ -20,10 +20,10 @@ export default async function Page(){
     <p className="muted">Defina o nível de acesso de cada pessoa no workspace.</p>
 
     <section className="card" style={{display:"grid",gap:10}}>
-      <div><strong>Owner</strong><div className="row-sub">Configura o app e cria Direções. Tem acesso total.</div></div>
-      <div><strong>Program Manager</strong><div className="row-sub">Cria e gerencia Programas.</div></div>
+      <div><strong>Owner</strong><div className="row-sub">Configura o app, cria Direções e tem acesso total.</div></div>
+      <div><strong>Program Manager</strong><div className="row-sub">Cria e gerencia Programas, Projetos e Ações.</div></div>
       <div><strong>Project Manager</strong><div className="row-sub">Cria e gerencia Projetos e Ações.</div></div>
-      <div><strong>Time</strong><div className="row-sub">Atualiza as Ações sob sua responsabilidade.</div></div>
+      <div><strong>Time</strong><div className="row-sub">Pode criar e atualizar Ações dentro dos Projetos.</div></div>
     </section>
 
     <div className="section-title"><h2>Membros</h2></div>
@@ -37,11 +37,16 @@ export default async function Page(){
       </div>)}
     </section>
 
-    <div className="section-title"><h2>Solicitações</h2></div>
+    <div className="section-title"><h2>Solicitações de acesso</h2></div>
+    <p className="muted">Todo convite exige sua aprovação. Revise o tipo de acesso antes de liberar a entrada.</p>
     <section className="card list">
-      {!req?.length?<div className="empty">Nenhuma solicitação pendente.</div>:req.map((r:any)=><div className="row" key={r.request_id}>
-        <div className="row-main"><div className="row-title">{r.requester_name||"Usuário"}</div><div className="row-sub">{r.message||"Solicitou acesso"}</div></div>
-        <AccessDecisionButtons requestId={r.request_id}/>
+      {!req?.length?<div className="empty">Nenhuma solicitação pendente.</div>:req.map((r:any)=><div className="row" key={r.request_id} style={{alignItems:"flex-start"}}>
+        <div className="row-main">
+          <div className="row-title">{r.requester_name||"Usuário"}</div>
+          <div className="row-sub">{r.message||"Entrou por convite e aguarda aprovação"}</div>
+          <div className="row-sub" style={{marginTop:4}}>Tipo solicitado: {roleLabel(r.requested_role||"member")}</div>
+        </div>
+        <AccessDecisionButtons requestId={r.request_id} requestedRole={r.requested_role||"member"}/>
       </div>)}
     </section>
   </main>;
