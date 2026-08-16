@@ -12,19 +12,35 @@ function normalizeStatus(value:unknown):PdfStatus{const v=String(value||"").toLo
 function splitText(value:unknown){return String(value||"").split(/\n|;|•/g).map(x=>x.replace(/^[-–—\s]+/,"").trim()).filter(Boolean);}
 function fileSafe(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-|-$/g,"").toLowerCase()||"diretoria";}
 
+async function loadCurrentLogoJpeg(url:unknown){
+  const value=String(url||"").trim();
+  if(!value)return null;
+  try{
+    if(value.startsWith("data:image/jpeg;base64,")||value.startsWith("data:image/jpg;base64,")){
+      const base64=value.slice(value.indexOf(",")+1);const buf=Buffer.from(base64,"base64");return buf[0]===0xff&&buf[1]===0xd8?buf:null;
+    }
+    if(!/^https?:\/\//i.test(value))return null;
+    const response=await fetch(value,{cache:"no-store",headers:{"Cache-Control":"no-cache"}});
+    if(!response.ok)return null;
+    const buf=Buffer.from(await response.arrayBuffer());
+    return buf[0]===0xff&&buf[1]===0xd8?buf:null;
+  }catch{return null;}
+}
+
 export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
   const{id}=await params;const s=await createClient();const w=await getCurrentWorkspace();if(!w)return new Response("Workspace não encontrado.",{status:404});
   const[{data:group},{data:brandRow}]=await Promise.all([
     s.from("groups").select("id,name").eq("id",id).eq("organization_id",w.id).is("deleted_at",null).maybeSingle(),
-    s.from("organization_settings").select("display_name,logo_url,primary_color,secondary_color,accent_color").eq("organization_id",w.id).maybeSingle(),
+    s.from("organization_settings").select("display_name,logo_url,primary_color,secondary_color,accent_color,updated_at").eq("organization_id",w.id).maybeSingle(),
   ]);
   if(!group)return new Response("Diretoria não encontrada ou sem permissão.",{status:404});
   const branding:PdfBranding={displayName:brandRow?.display_name||w.name,logoUrl:brandRow?.logo_url,primaryColor:brandRow?.primary_color,secondaryColor:brandRow?.secondary_color,accentColor:brandRow?.accent_color};
+  const logoJpeg=await loadCurrentLogoJpeg(brandRow?.logo_url);
 
   const{data:programRows}=await s.from("programs").select("id,name,group_id").eq("organization_id",w.id).eq("group_id",id).is("deleted_at",null).is("archived_at",null);const programs=programRows||[],programIds=programs.map((p:any)=>p.id),programMap=new Map(programs.map((p:any)=>[p.id,p.name]));
-  if(!programIds.length){const pdf=generateStatusPdf([],branding);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store"}});}
+  if(!programIds.length){const pdf=generateStatusPdf([],branding,logoJpeg);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store, no-cache, must-revalidate, max-age=0","Pragma":"no-cache","Expires":"0"}});}
   const{data:projectRows}=await s.from("projects").select("id,name,program_id,start_date,due_date,progress,health,status").eq("organization_id",w.id).in("program_id",programIds).is("deleted_at",null).is("archived_at",null).order("name");const projects=projectRows||[],projectIds=projects.map((p:any)=>p.id);
-  if(!projectIds.length){const pdf=generateStatusPdf([],branding);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store"}});}
+  if(!projectIds.length){const pdf=generateStatusPdf([],branding,logoJpeg);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store, no-cache, must-revalidate, max-age=0","Pragma":"no-cache","Expires":"0"}});}
 
   const[{data:activityRows},{data:riskRows},{data:budgetRows},{data:reportRows}]=await Promise.all([
     s.from("activities").select("id,project_id,title,status,progress,due_date,completed_at,primary_owner_id,external_owner_name").eq("organization_id",w.id).in("project_id",projectIds).is("deleted_at",null).order("due_date",{ascending:true}),
@@ -36,5 +52,5 @@ export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
 
   const pdfProjects:PdfProject[]=projects.map((p:any)=>{const pa=activities.filter((a:any)=>a.project_id===p.id),pr=risks.filter((r:any)=>r.project_id===p.id&&isOpen(r.status)),report=latestReport.get(p.id),periodStart=isoDate(report?.period_start)||fallbackStartIso,completed=pa.filter((a:any)=>!isOpen(a.status)&&isoDate(a.completed_at)&&String(a.completed_at).slice(0,10)>=periodStart!).map((a:any)=>a.title),ongoing=pa.filter((a:any)=>isOpen(a.status)).slice(0,6).map((a:any)=>`${a.title} (${Math.round(n(a.progress))}%)`),nextFallback=pa.filter((a:any)=>isOpen(a.status)&&(!a.due_date||String(a.due_date).slice(0,10)>=today)).slice(0,5).map((a:any)=>a.title),overdue=pa.filter((a:any)=>isOpen(a.status)&&a.due_date&&String(a.due_date).slice(0,10)<today).slice(0,3).map((a:any)=>`Atrasada: ${a.title}`),riskAttention=pr.filter((r:any)=>n(r.score)>=9).slice(0,4).map((r:any)=>`Risco: ${r.title}`),reportAttention=[...splitText(report?.issues),...splitText(report?.decisions_needed)],volunteerKeys=new Set<string>();pa.forEach((a:any)=>{if(a.primary_owner_id)volunteerKeys.add(`u:${a.primary_owner_id}`);else if(a.external_owner_name)volunteerKeys.add(`e:${String(a.external_owner_name).toLowerCase().trim()}`);});const b=latestBudget.get(p.id),planned=(n(b?.capex_budget)+n(b?.opex_budget))||n(b?.budget),actual=n(b?.actual);return{projectName:p.name,directionName:group.name,programName:String(programMap.get(p.program_id)||"Programa"),workspaceName:branding.displayName||w.name,status:normalizeStatus(report?.overall_status||p.health),startDate:isoDate(p.start_date),dueDate:isoDate(p.due_date),plannedCost:planned,actualCost:actual,volunteers:volunteerKeys.size,progress:n(p.progress),executed:splitText(report?.accomplishments).length?splitText(report?.accomplishments):completed,ongoing,nextSteps:splitText(report?.next_steps).length?splitText(report?.next_steps):nextFallback,attention:[...reportAttention,...riskAttention,...overdue]};});
 
-  const pdf=generateStatusPdf(pdfProjects,branding);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store, max-age=0"}});
+  const pdf=generateStatusPdf(pdfProjects,branding,logoJpeg);return new Response(new Uint8Array(pdf),{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="status-${fileSafe(group.name)}.pdf"`,"Cache-Control":"no-store, no-cache, must-revalidate, max-age=0","Pragma":"no-cache","Expires":"0"}});
 }
