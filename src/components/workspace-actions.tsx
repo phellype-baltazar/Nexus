@@ -6,7 +6,15 @@ import {createClient} from "@/lib/supabase/client";
 
 const ROLE_LABELS:Record<string,string>={program_manager:"Program Manager",project_manager:"Project Manager",member:"Time"};
 
-export function WorkspaceActions({organizationId,organizationName,initial}:{organizationId:string;organizationName:string;initial:any}){
+function extensionFromType(type:string){
+  if(type.includes("png"))return"png";
+  if(type.includes("jpeg")||type.includes("jpg"))return"jpg";
+  if(type.includes("webp"))return"webp";
+  if(type.includes("svg"))return"svg";
+  return"png";
+}
+
+export function WorkspaceActions({organizationId,organizationName,logoUrl,initial}:{organizationId:string;organizationName:string;logoUrl?:string;initial:any}){
   const [info,setInfo]=useState<any>(initial);
   const [msg,setMsg]=useState("");
   const [inviteRole,setInviteRole]=useState(initial?.default_role||"member");
@@ -38,15 +46,37 @@ export function WorkspaceActions({organizationId,organizationName,initial}:{orga
     setMsg("Link de convite copiado. O acesso só será liberado após sua aprovação.");
   }
 
+  async function getLogoFile(){
+    if(!logoUrl || logoUrl.startsWith("data:"))return null;
+    try{
+      const response=await fetch(logoUrl,{cache:"no-store"});
+      if(!response.ok)return null;
+      const blob=await response.blob();
+      const type=blob.type||"image/png";
+      const file=new File([blob],`logo-${organizationName.replace(/[^a-z0-9]+/gi,"-").toLowerCase()}.${extensionFromType(type)}`,{type});
+      if(typeof navigator.canShare==="function" && navigator.canShare({files:[file]}))return file;
+    }catch{}
+    return null;
+  }
+
   async function share(){
     const current=await ensureInvite();
     if(!current?.code)return;
     const url=buildLink(current.code);
-    const text=`Você foi convidado para solicitar acesso ao workspace ${organizationName}. Tipo sugerido: ${ROLE_LABELS[inviteRole]}. O acesso será liberado após aprovação do responsável.`;
+    const text=`Você foi convidado para solicitar acesso ao workspace ${organizationName}. Tipo sugerido: ${ROLE_LABELS[inviteRole]}. O acesso será liberado após aprovação do responsável.\n${url}`;
     if(navigator.share){
-      try{await navigator.share({title:`Convite · ${organizationName}`,text,url});setMsg("Convite pronto para compartilhar.");return}catch(err:any){if(err?.name==="AbortError")return}
+      try{
+        const logoFile=await getLogoFile();
+        if(logoFile){
+          await navigator.share({title:`Convite · ${organizationName}`,text,files:[logoFile]});
+        }else{
+          await navigator.share({title:`Convite · ${organizationName}`,text,url});
+        }
+        setMsg("Convite pronto para compartilhar.");
+        return;
+      }catch(err:any){if(err?.name==="AbortError")return}
     }
-    await navigator.clipboard.writeText(`${text}\n${url}`);setMsg("Convite copiado para compartilhar.");
+    await navigator.clipboard.writeText(text);setMsg("Convite copiado para compartilhar.");
   }
 
   async function copyCode(){
