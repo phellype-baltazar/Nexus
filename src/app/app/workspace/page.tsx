@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, getMyRole } from "@/lib/workspace";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceOwnerSettings } from "@/components/workspace-owner-settings";
+import { WorkspaceDeleteButton } from "@/components/workspace-delete-button";
 
 const ROLE_LABELS: Record<string, string> = {
   organization_owner: "Owner",
@@ -78,10 +79,14 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
     <section className="card list">
       {workspaces.map((org: any) => {
         const active = org.id === w.id;
-        return <form className="row" action={switchWorkspace} key={org.id}>
+        const owner = org.role === "organization_owner";
+        return <form className="row" action={switchWorkspace} key={org.id} style={{gap:10}}>
           <input type="hidden" name="organization_id" value={org.id}/>
           <div className="row-main"><div className="row-title">{org.name}</div><div className="row-sub">{roleLabel(org.role)}{active ? " · workspace atual" : ""}</div></div>
-          <button className={`btn ${active ? "btn-secondary" : "btn-outline"}`} type="submit" disabled={active}>{active ? "Ativo" : "Usar"}</button>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            {owner&&<WorkspaceDeleteButton organizationId={org.id} organizationName={org.name} active={active}/>} 
+            <button className={`btn ${active ? "btn-secondary" : "btn-outline"}`} type="submit" disabled={active}>{active ? "Ativo" : "Usar"}</button>
+          </div>
         </form>;
       })}
     </section>
