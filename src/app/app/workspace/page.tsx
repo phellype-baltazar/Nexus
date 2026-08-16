@@ -52,12 +52,14 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
     invite = data;
   }
 
-  const [{ data: members }, { data: myMemberships }] = await Promise.all([
+  const [{ data: members }, { data: myMemberships }, { data: branding }] = await Promise.all([
     s.from("organization_members").select("user_id,role,status").eq("organization_id", w.id),
     s.from("organization_members").select("organization_id,role,status,organizations(id,name,slug)").eq("user_id", userId).eq("status", "active"),
+    s.from("organization_settings").select("display_name,logo_url,primary_color,secondary_color,accent_color").eq("organization_id", w.id).maybeSingle(),
   ]);
 
   const workspaces = (myMemberships || []).map((membership: any) => ({id: membership.organizations?.id,name: membership.organizations?.name,slug: membership.organizations?.slug,role: membership.role})).filter((workspace: any) => workspace.id && workspace.name).sort((a: any, b: any) => a.name.localeCompare(b.name, "pt-BR"));
+  const brandedName=branding?.display_name||w.name;
 
   return <main className="page">
     <span className="eyebrow">Organização</span>
@@ -73,7 +75,7 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
     </section>
 
     {isOwner && <WorkspaceOwnerSettings organizationId={w.id} organizationName={w.name}/>} 
-    {canInvite && <WorkspaceActions organizationId={w.id} organizationName={w.name} initial={invite}/>}
+    {canInvite && <WorkspaceActions organizationId={w.id} organizationName={brandedName} logoUrl={branding?.logo_url||""} initial={invite}/>}
 
     <div className="section-title"><h2>Trocar workspace</h2></div>
     <section className="card list">
