@@ -69,7 +69,10 @@ export default async function Page() {
             <div className="row-sub" style={{marginTop:12,overflowWrap:"anywhere"}}>{directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos</div>
           </Link>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:14,paddingTop:13,borderTop:"1px dashed rgba(100,116,139,.28)",minWidth:0}}>
-            <span className="row-sub" style={{fontSize:12,minWidth:0,overflowWrap:"anywhere"}}>Toque no card para abrir</span>
+            <Link href={`/app/group/${group.id}`} aria-label={`Ver programas de ${group.name}`} style={{display:"inline-flex",alignItems:"center",gap:7,minWidth:0,color:"var(--primary, #5b21b6)",textDecoration:"none",fontSize:12,fontWeight:700}}>
+              <span aria-hidden="true" style={{fontSize:18,lineHeight:1}}>☝️</span>
+              <span style={{color:"#64748b",overflowWrap:"anywhere"}}>Toque para ver os programas</span>
+            </Link>
             <a href={`/app/group/${group.id}/status-pdf`} aria-label={`Gerar relatório de status de ${group.name}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,minHeight:38,padding:"8px 12px",borderRadius:12,border:"1px solid var(--primary, #5b21b6)",color:"var(--primary, #5b21b6)",background:"rgba(255,255,255,.72)",textDecoration:"none",fontSize:13,fontWeight:800,whiteSpace:"nowrap",flexShrink:0}}>
               <span aria-hidden="true" style={{fontSize:15,lineHeight:1}}>▤</span>
               <span>Relatório de status</span>
