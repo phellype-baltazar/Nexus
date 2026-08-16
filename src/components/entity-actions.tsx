@@ -52,7 +52,7 @@ export function EntityActions({type,id,initialTitle,initialDescription}:{type:En
 
   return <section className="card form">
     <h2>Ações</h2>
-    <button className="btn btn-primary btn-block" onClick={()=>setEditing(true)}>Editar</button>
+    <button className="btn btn-primary btn-block" onClick={()=>setEditing(true)}>✎ Editar</button>
     {type!=="activity"&&<button className="btn btn-outline btn-block" onClick={archive} disabled={busy}>Arquivar</button>}
     <button type="button" className="btn btn-block" onClick={remove} disabled={busy} style={{border:"1px solid #fecaca",background:"#fff1f2",color:"#b91c1c",fontWeight:800}}>Excluir</button>
     {msg&&<div className="error">{msg}</div>}
