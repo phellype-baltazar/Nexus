@@ -29,7 +29,7 @@ export function WorkspaceActions({organizationId,organizationName,initial}:{orga
     return data;
   }
 
-  function buildLink(code:string){return `${window.location.origin}/onboarding?invite=${encodeURIComponent(code)}`}
+  function buildLink(code:string){return `${window.location.origin}/invite/${encodeURIComponent(code)}`}
 
   async function copyLink(){
     const current=await ensureInvite();
@@ -42,7 +42,7 @@ export function WorkspaceActions({organizationId,organizationName,initial}:{orga
     const current=await ensureInvite();
     if(!current?.code)return;
     const url=buildLink(current.code);
-    const text=`Você foi convidado para solicitar acesso ao workspace ${organizationName} no Nexus. Tipo sugerido: ${ROLE_LABELS[inviteRole]}. O acesso será liberado após aprovação do responsável.`;
+    const text=`Você foi convidado para solicitar acesso ao workspace ${organizationName}. Tipo sugerido: ${ROLE_LABELS[inviteRole]}. O acesso será liberado após aprovação do responsável.`;
     if(navigator.share){
       try{await navigator.share({title:`Convite · ${organizationName}`,text,url});setMsg("Convite pronto para compartilhar.");return}catch(err:any){if(err?.name==="AbortError")return}
     }
