@@ -40,21 +40,20 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
   const {data:p}=await s.from("projects").select("*,programs(id,name,groups(id,name))").eq("id",id).is("deleted_at",null).maybeSingle();
   if(!p)return <main className="page"><h1>Projeto</h1><div className="card">Não encontrado ou sem permissão.</div></main>;
 
-  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:financialItems},{data:benefits},{data:meetings},{data:memberRows},{data:reports},{data:deps}] = await Promise.all([
+  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:financialItems},{data:benefits},{data:memberRows},{data:reports},{data:deps}] = await Promise.all([
     s.from("activities").select("*,profiles!activities_primary_owner_id_fkey(id,full_name)").eq("project_id",id).is("deleted_at",null).order("due_date",{ascending:true}),
     s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
     s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("budgets").select("*").eq("project_id",id).order("updated_at",{ascending:false}),
     s.from("project_financial_items").select("id,label,amount,currency,notes,created_at,updated_at").eq("project_id",id).is("deleted_at",null).order("created_at",{ascending:false}),
     s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
-    s.from("meetings").select("*").eq("project_id",id).is("deleted_at",null).order("starts_at",{ascending:false}),
     s.from("organization_members").select("user_id,role,status,profiles!organization_members_user_id_fkey(full_name)").eq("organization_id",w.id).eq("status","active"),
     s.from("status_reports").select("*").eq("project_id",id).is("deleted_at",null).order("period_end",{ascending:false}),
     s.from("project_dependencies").select("*,projects!project_dependencies_depends_on_project_id_fkey(name)").eq("project_id",id)
   ]);
 
   const members=(memberRows||[]).map((m:any)=>({user_id:m.user_id,role:m.role,status:m.status,full_name:m.profiles?.full_name||null}));
-  const tabs=[["overview","Visão geral"],["activities","Atividades"],["risks","Riscos"],["kpis","KPIs"],["finance","Financeiro"],["people","Pessoas"],["meetings","Reuniões"],["status","Status"]];
+  const tabs=[["overview","Visão geral"],["activities","Atividades"],["risks","Riscos"],["kpis","KPIs"],["finance","Financeiro"],["people","Pessoas"],["status","Status"]];
 
   return <main className="page" style={{maxWidth:"100%",overflowX:"hidden"}}>
     <ContextNav organizationName={w.name} group={(p as any).programs?.groups} program={(p as any).programs} project={{id:p.id,name:p.name}}/>
@@ -84,7 +83,6 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     {tab==="kpis"&&<><KpiListEditor kpis={kpis||[]}/><KpiCreator organizationId={w.id} projectId={id}/></>}
     {tab==="finance"&&<><FinanceGridEditor organizationId={w.id} projectId={id} budget={budgets?.[0]||null} items={financialItems||[]} currency={budgets?.[0]?.currency||"BRL"}/><FinanceCreatorV2 organizationId={w.id} projectId={id}/></>}
     {tab==="people"&&<section className="card list">{!members?.length?<div className="empty">Nenhum membro disponível.</div>:members.map((m:any)=><div className="row" key={m.user_id}><div className="row-main"><div className="row-title">{m.full_name||"Usuário"}</div><div className="row-sub">{m.role} · {m.status}</div></div></div>)}</section>}
-    {tab==="meetings"&&<section className="card list">{!meetings?.length?<div className="empty">Nenhuma reunião vinculada.</div>:meetings.map((m:any)=><div className="row" key={m.id}><div className="row-main"><div className="row-title">{m.title}</div><div className="row-sub">{dateBR(m.starts_at)} · {m.status}</div></div></div>)}</section>}
     {tab==="status"&&<><CheckpointListEditor reports={reports||[]}/><StatusCheckpointCreator organizationId={w.id} projectId={id} userId={userId}/></>}
   </main>;
 }
