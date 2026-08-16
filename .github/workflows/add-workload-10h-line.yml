@@ -1,8 +1,8 @@
-name: Add workload 10h reference line
-on:
+name: Add workload reference line
+"on":
   push:
     paths:
-      - '.github/workflows/add-workload-10h-line.yml'
+      - .github/workflows/add-workload-10h-line.yml
 permissions:
   contents: write
 jobs:
@@ -10,28 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      - name: Patch workload chart
+      - name: Patch chart
+        shell: python
         run: |
-          python - <<'PY'
           from pathlib import Path
-          p=Path('src/components/activity-interactive-dashboard.tsx')
-          s=p.read_text()
-          old='''<div style={{height:132,display:"flex",alignItems:"flex-end",gap:1,marginTop:6,borderBottom:"1px solid var(--line)",overflow:"hidden"}}>{workloadCurve.map((x,i)=>{const historical=x.work_date<cutoff;const firstFuture=!historical&&(i===0||workloadCurve[i-1].work_date<cutoff);const h=Math.min(chartScale,Number(x.planned_hours||0));return <div key={`${x.work_date}-${i}`} title={`${dateBR(x.work_date)} · ${fmtHours(x.planned_hours)}`} style={{flex:1,minWidth:1,maxWidth:12,height:`${Math.max(4,Math.round(h/chartScale*118))}px`,background:Number(x.planned_hours)>10?"#b42318":historical?"#94a3b8":"var(--primary)",borderRadius:"2px 2px 0 0",opacity:historical?.55:.9,borderLeft:firstFuture?"3px solid #f59e0b":undefined,marginLeft:firstFuture?2:0}}/>})}</div>'''
-          new='''<div style={{height:132,position:"relative",marginTop:6,borderBottom:"1px solid var(--line)",overflow:"visible"}}>
-      <div style={{position:"absolute",left:0,right:0,top:6,borderTop:"1px dashed #111827",zIndex:3,pointerEvents:"none"}}><span style={{position:"absolute",right:0,top:-16,fontSize:9,fontWeight:800,color:"#111827",background:"white",paddingLeft:4}}>10 h</span></div>
-      <div style={{height:"100%",display:"flex",alignItems:"flex-end",gap:1,overflow:"hidden"}}>{workloadCurve.map((x,i)=>{const historical=x.work_date<cutoff;const firstFuture=!historical&&(i===0||workloadCurve[i-1].work_date<cutoff);const h=Math.min(chartScale,Number(x.planned_hours||0));return <div key={`${x.work_date}-${i}`} title={`${dateBR(x.work_date)} · ${fmtHours(x.planned_hours)}`} style={{flex:1,minWidth:1,maxWidth:12,height:`${Math.max(4,Math.round(h/chartScale*118))}px`,background:Number(x.planned_hours)>10?"#b42318":historical?"#94a3b8":"var(--primary)",borderRadius:"2px 2px 0 0",opacity:historical?.55:.9,borderLeft:firstFuture?"3px solid #f59e0b":undefined,marginLeft:firstFuture?2:0}}/>})}</div>
-     </div>'''
-          if old not in s:
-              raise SystemExit('target chart block not found')
-          p.write_text(s.replace(old,new,1))
-          PY
+          p = Path('src/components/activity-interactive-dashboard.tsx')
+          s = p.read_text()
+          start = '<div style={{height:132,display:"flex",alignItems:"flex-end",gap:1,marginTop:6,borderBottom:"1px solid var(--line)",overflow:"hidden"}}>{workloadCurve.map'
+          if start not in s:
+              raise SystemExit('chart start not found')
+          repl = '<div style={{height:132,position:"relative",marginTop:6,borderBottom:"1px solid var(--line)",overflow:"visible"}}><div style={{position:"absolute",left:0,right:0,top:6,borderTop:"1px dashed #111827",zIndex:3,pointerEvents:"none"}}><span style={{position:"absolute",right:0,top:-16,fontSize:9,fontWeight:800,color:"#111827",background:"white",paddingLeft:4}}>10 h</span></div><div style={{height:"100%",display:"flex",alignItems:"flex-end",gap:1,overflow:"hidden"}}>{workloadCurve.map'
+          s = s.replace(start, repl, 1)
+          marker = 'marginLeft:firstFuture?2:0}}/>})}</div>\n     <div style={{display:"flex",justifyContent:"space-between"'
+          if marker not in s:
+              raise SystemExit('chart end not found')
+          s = s.replace(marker, 'marginLeft:firstFuture?2:0}}/>})}</div></div>\n     <div style={{display:"flex",justifyContent:"space-between"', 1)
+          p.write_text(s)
       - name: Commit
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/components/activity-interactive-dashboard.tsx
-          git commit -m 'feat: show 10h reference line on workload chart'
+          git commit -m "feat: add 10h dashed limit line to workload chart"
           git push
