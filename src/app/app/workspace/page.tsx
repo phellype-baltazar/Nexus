@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, getMyRole } from "@/lib/workspace";
 import { WorkspaceActions } from "@/components/workspace-actions";
+import { WorkspaceOwnerSettings } from "@/components/workspace-owner-settings";
 
 const ROLE_LABELS: Record<string, string> = {
   organization_owner: "Owner",
@@ -42,7 +43,8 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
   const { data: claims } = await s.auth.getClaims();
   const userId = String(claims?.claims?.sub || "");
   const role = await getMyRole(w.id);
-  const canInvite=role?.role === "organization_owner" || role?.role === "organization_admin";
+  const isOwner=role?.role === "organization_owner";
+  const canInvite=isOwner || role?.role === "organization_admin";
   let invite: any = null;
   if (canInvite) {
     const { data } = await s.rpc("rpc_get_workspace_invite_code", {p_organization_id: w.id});
@@ -69,6 +71,7 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
       <div className="row-sub">{members?.length || 0} membros</div>
     </section>
 
+    {isOwner && <WorkspaceOwnerSettings organizationId={w.id} organizationName={w.name}/>} 
     {canInvite && <WorkspaceActions organizationId={w.id} organizationName={w.name} initial={invite}/>}
 
     <div className="section-title"><h2>Trocar workspace</h2></div>
