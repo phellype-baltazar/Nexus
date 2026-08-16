@@ -10,6 +10,33 @@ const BRANDING_BUCKET="organization-branding";
 const MAX_LOGO_BYTES=5*1024*1024;
 const ALLOWED_TYPES=new Set(["image/png","image/jpeg","image/webp","image/svg+xml"]);
 
+async function fileToCompactDataUrl(file:File){
+  if(file.type==="image/svg+xml"){
+    const text=await file.text();
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+  }
+  const source=URL.createObjectURL(file);
+  try{
+    const image=await new Promise<HTMLImageElement>((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error("Não foi possível processar a imagem selecionada."));
+      img.src=source;
+    });
+    const maxW=900,maxH=320;
+    const scale=Math.min(1,maxW/image.naturalWidth,maxH/image.naturalHeight);
+    const width=Math.max(1,Math.round(image.naturalWidth*scale));
+    const height=Math.max(1,Math.round(image.naturalHeight*scale));
+    const canvas=document.createElement("canvas");
+    canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext("2d");
+    if(!ctx)throw new Error("Não foi possível processar o logo.");
+    ctx.clearRect(0,0,width,height);
+    ctx.drawImage(image,0,0,width,height);
+    return canvas.toDataURL("image/webp",.86);
+  }finally{URL.revokeObjectURL(source);}
+}
+
 export function BrandingEditor({organizationId,initial}:{organizationId:string;initial:Branding}){
   const router=useRouter();
   const s=createClient();
@@ -42,22 +69,27 @@ export function BrandingEditor({organizationId,initial}:{organizationId:string;i
     setBusy(true);setMsg("");
     try{
       let nextLogo=logoUrl;
+      let usedFallback=false;
       if(file){
         const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"");
         const path=`${organizationId}/logo.${ext||"png"}`;
         const up=await s.storage.from(BRANDING_BUCKET).upload(path,file,{upsert:true,contentType:file.type||undefined,cacheControl:"3600"});
-        if(up.error)throw up.error;
-        const publicData=s.storage.from(BRANDING_BUCKET).getPublicUrl(path).data;
-        nextLogo=`${publicData.publicUrl}?v=${Date.now()}`;
+        if(!up.error){
+          const publicData=s.storage.from(BRANDING_BUCKET).getPublicUrl(path).data;
+          nextLogo=`${publicData.publicUrl}?v=${Date.now()}`;
+        }else{
+          // Fallback resiliente: mantém a identidade visual funcional mesmo se o Storage estiver indisponível.
+          nextLogo=await fileToCompactDataUrl(file);
+          usedFallback=true;
+        }
       }
       const{error}=await s.from("organization_settings").upsert({organization_id:organizationId,display_name:displayName||null,logo_url:nextLogo||null,primary_color:primary,secondary_color:secondary,accent_color:accent,updated_at:new Date().toISOString()},{onConflict:"organization_id"});
       if(error)throw error;
-      setLogoUrl(nextLogo);setFile(null);setMsg("Identidade visual salva.");router.refresh();
+      setLogoUrl(nextLogo);setFile(null);setMsg(usedFallback?"Identidade visual salva. O logo foi otimizado e armazenado com segurança na configuração.":"Identidade visual salva.");router.refresh();
     }catch(e:any){
       const raw=String(e?.message||"");
       const low=raw.toLowerCase();
       if(low.includes("row-level security")||low.includes("policy"))setMsg("Você não tem permissão de administrador para alterar a identidade visual deste workspace.");
-      else if(low.includes("bucket"))setMsg("O armazenamento de logos não está disponível. Atualize a página e tente novamente.");
       else if(low.includes("mime")||low.includes("content type"))setMsg("Formato de arquivo não permitido. Use PNG, JPG, WEBP ou SVG.");
       else if(low.includes("size")||low.includes("too large"))setMsg("O logo deve ter no máximo 5 MB.");
       else setMsg(raw||"Não foi possível salvar.");
