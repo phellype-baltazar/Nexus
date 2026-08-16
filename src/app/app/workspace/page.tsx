@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, getMyRole } from "@/lib/workspace";
 import { WorkspaceActions } from "@/components/workspace-actions";
+import {roleLabel} from "@/components/member-role-editor";
 
 async function switchWorkspace(formData: FormData) {
   "use server";
@@ -26,8 +27,9 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
   const { data: claims } = await s.auth.getClaims();
   const userId = String(claims?.claims?.sub || "");
   const role = await getMyRole(w.id);
+  const canInvite=role?.role === "organization_owner" || role?.role === "organization_admin";
   let invite: any = null;
-  if (role?.role === "organization_owner" || role?.role === "organization_admin") {
+  if (canInvite) {
     const { data } = await s.rpc("rpc_get_workspace_invite_code", {p_organization_id: w.id});
     invite = data;
   }
@@ -48,11 +50,11 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
 
     <section className="card">
       <div className="eyebrow">Seu papel</div>
-      <div style={{fontWeight:900,fontSize:18,marginTop:7}}>{role?.role || "membro"}</div>
+      <div style={{fontWeight:900,fontSize:18,marginTop:7}}>{roleLabel(role?.role)}</div>
       <div className="row-sub">{members?.length || 0} membros</div>
     </section>
 
-    {invite && <WorkspaceActions organizationId={w.id} organizationName={w.name} initial={invite}/>}
+    {canInvite && <WorkspaceActions organizationId={w.id} organizationName={w.name} initial={invite}/>}
 
     <div className="section-title"><h2>Trocar workspace</h2></div>
     <section className="card list">
@@ -60,7 +62,7 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
         const active = org.id === w.id;
         return <form className="row" action={switchWorkspace} key={org.id}>
           <input type="hidden" name="organization_id" value={org.id}/>
-          <div className="row-main"><div className="row-title">{org.name}</div><div className="row-sub">{org.role || "membro"}{active ? " · workspace atual" : ""}</div></div>
+          <div className="row-main"><div className="row-title">{org.name}</div><div className="row-sub">{roleLabel(org.role)}{active ? " · workspace atual" : ""}</div></div>
           <button className={`btn ${active ? "btn-secondary" : "btn-outline"}`} type="submit" disabled={active}>{active ? "Ativo" : "Usar"}</button>
         </form>;
       })}
