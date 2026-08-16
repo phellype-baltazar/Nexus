@@ -6,6 +6,10 @@ import {createClient} from "@/lib/supabase/client";
 
 type Branding={display_name?:string|null;logo_url?:string|null;primary_color?:string|null;secondary_color?:string|null;accent_color?:string|null};
 
+const BRANDING_BUCKET="organization-branding";
+const MAX_LOGO_BYTES=5*1024*1024;
+const ALLOWED_TYPES=new Set(["image/png","image/jpeg","image/webp","image/svg+xml"]);
+
 export function BrandingEditor({organizationId,initial}:{organizationId:string;initial:Branding}){
   const router=useRouter();
   const s=createClient();
@@ -18,28 +22,40 @@ export function BrandingEditor({organizationId,initial}:{organizationId:string;i
   const[busy,setBusy]=useState(false);
   const[msg,setMsg]=useState("");
 
+  function chooseFile(next:File|null){
+    setMsg("");
+    if(!next){setFile(null);return;}
+    if(!ALLOWED_TYPES.has(next.type)){setFile(null);setMsg("Formato de logo não suportado. Use PNG, JPG, WEBP ou SVG.");return;}
+    if(next.size>MAX_LOGO_BYTES){setFile(null);setMsg("O logo deve ter no máximo 5 MB.");return;}
+    setFile(next);
+  }
+
   async function save(){
     setBusy(true);setMsg("");
     try{
       let nextLogo=logoUrl;
       if(file){
-        const ext=(file.name.split(".").pop()||"png").toLowerCase();
-        const path=`${organizationId}/logo-${Date.now()}.${ext}`;
-        const up=await s.storage.from("branding").upload(path,file,{upsert:true,contentType:file.type||undefined});
+        const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"");
+        const path=`${organizationId}/logo-${Date.now()}.${ext||"png"}`;
+        const up=await s.storage.from(BRANDING_BUCKET).upload(path,file,{upsert:true,contentType:file.type||undefined,cacheControl:"3600"});
         if(up.error)throw up.error;
-        nextLogo=s.storage.from("branding").getPublicUrl(path).data.publicUrl;
+        nextLogo=s.storage.from(BRANDING_BUCKET).getPublicUrl(path).data.publicUrl;
       }
       const{error}=await s.from("organization_settings").upsert({organization_id:organizationId,display_name:displayName||null,logo_url:nextLogo||null,primary_color:primary,secondary_color:secondary,accent_color:accent,updated_at:new Date().toISOString()},{onConflict:"organization_id"});
       if(error)throw error;
       setLogoUrl(nextLogo);setFile(null);setMsg("Identidade visual salva.");router.refresh();
-    }catch(e:any){setMsg(e?.message||"Não foi possível salvar.");}
-    finally{setBusy(false);}
+    }catch(e:any){
+      const raw=String(e?.message||"");
+      if(raw.toLowerCase().includes("row-level security"))setMsg("Você não tem permissão de administrador para alterar a identidade visual deste workspace.");
+      else if(raw.toLowerCase().includes("bucket"))setMsg("Não foi possível acessar o armazenamento de logos. Tente novamente após atualizar a página.");
+      else setMsg(raw||"Não foi possível salvar.");
+    }finally{setBusy(false);}
   }
 
   return <section className="card form">
     <div className="section-title" style={{margin:0}}><h2>Identidade visual</h2></div>
     <div className="field"><label>Nome exibido</label><input className="input" value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Nome da empresa"/></div>
-    <div className="field"><label>Logo</label>{logoUrl?<img src={logoUrl} alt="Logo atual" style={{maxWidth:180,maxHeight:72,objectFit:"contain",objectPosition:"left center",marginBottom:8}}/>:null}<input className="input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e=>setFile(e.target.files?.[0]||null)}/><div className="row-sub">PNG, JPG, WEBP ou SVG. A mesma marca será usada no app e nos relatórios.</div></div>
+    <div className="field"><label>Logo</label>{logoUrl?<img src={logoUrl} alt="Logo atual" style={{maxWidth:180,maxHeight:72,objectFit:"contain",objectPosition:"left center",marginBottom:8}}/>:null}<input className="input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e=>chooseFile(e.target.files?.[0]||null)}/><div className="row-sub">PNG, JPG, WEBP ou SVG · máximo 5 MB. A mesma marca será usada no app e nos relatórios.</div></div>
     <div className="grid grid-2">
       <div className="field"><label>Cor principal</label><input className="input" type="color" value={primary} onChange={e=>setPrimary(e.target.value)} style={{padding:6}}/></div>
       <div className="field"><label>Cor secundária</label><input className="input" type="color" value={secondary} onChange={e=>setSecondary(e.target.value)} style={{padding:6}}/></div>
