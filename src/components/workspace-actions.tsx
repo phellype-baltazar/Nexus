@@ -1,6 +1,6 @@
 "use client";
 
-import {useMemo,useState} from "react";
+import {useState} from "react";
 import {Check,Copy,Link2,Share2,Users} from "lucide-react";
 import {createClient} from "@/lib/supabase/client";
 
@@ -10,11 +10,6 @@ export function WorkspaceActions({organizationId,organizationName,initial}:{orga
   const [joinMode,setJoinMode]=useState(initial?.join_mode||"auto_join");
   const [busy,setBusy]=useState(false);
   const s=createClient();
-
-  const inviteLink=useMemo(()=>{
-    if(!info?.code || typeof window==="undefined") return "";
-    return `${window.location.origin}/onboarding?invite=${encodeURIComponent(info.code)}`;
-  },[info?.code]);
 
   async function regen(mode=joinMode){
     setBusy(true);setMsg("");
