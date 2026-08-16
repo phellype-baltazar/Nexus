@@ -52,12 +52,15 @@ export default async function Page() {
         const directionPrograms = programsByGroup.get(group.id) || [], directionProjects = projectsByGroup.get(group.id) || [];
         const directionProgress = directionProjects.length ? Math.round(average(directionProjects.map((project:any) => numberValue(project.progress)))) : directionPrograms.length ? Math.round(average(directionPrograms.map((program:any) => numberValue(program.progress)))) : Math.round(numberValue(group.progress));
         const directionOverdue = overdueByGroup.get(group.id) || 0, criticalRisks = criticalRisksByGroup.get(group.id) || 0, status = directionStatus(group.health, directionProgress, directionOverdue, criticalRisks), tone=statusTone(status);
-        return <Link href={`/app/group/${group.id}`} className="card" key={group.id} style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,overflow:"hidden",background:tone.background,borderColor:tone.borderColor}}>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,minWidth:0}}><div style={{minWidth:0,flex:1,overflow:"hidden"}}><div style={{fontWeight:900,fontSize:18,lineHeight:1.2,overflowWrap:"anywhere"}}>{group.name}</div><div className="row-sub" style={{marginTop:6,overflowWrap:"anywhere"}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div></div><span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span></div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,minWidth:0}}><span className="eyebrow">Progresso</span><strong style={{flexShrink:0}}>{pct(directionProgress)}</strong></div>
-          <div style={{width:"100%",maxWidth:"100%",height:10,borderRadius:999,background:"rgba(255,255,255,.65)",overflow:"hidden",marginTop:7}}><div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,maxWidth:"100%",background:tone.color,borderRadius:999}} /></div>
-          <div className="row-sub" style={{marginTop:12,overflowWrap:"anywhere"}}>{directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos</div>
-        </Link>;
+        return <div className="card" key={group.id} style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,overflow:"hidden",background:tone.background,borderColor:tone.borderColor}}>
+          <Link href={`/app/group/${group.id}`} style={{display:"block",color:"inherit",textDecoration:"none"}}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,minWidth:0}}><div style={{minWidth:0,flex:1,overflow:"hidden"}}><div style={{fontWeight:900,fontSize:18,lineHeight:1.2,overflowWrap:"anywhere"}}>{group.name}</div><div className="row-sub" style={{marginTop:6,overflowWrap:"anywhere"}}>{directionPrograms.length} programas · {directionProjects.length} projetos</div></div><span className={`chip ${status==="off_track"?"danger":status==="attention"?"warning":"success"}`} style={{flexShrink:0}}>{healthLabel(status)}</span></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,minWidth:0}}><span className="eyebrow">Progresso</span><strong style={{flexShrink:0}}>{pct(directionProgress)}</strong></div>
+            <div style={{width:"100%",maxWidth:"100%",height:10,borderRadius:999,background:"rgba(255,255,255,.65)",overflow:"hidden",marginTop:7}}><div style={{height:"100%",width:`${Math.max(0,Math.min(100,directionProgress))}%`,maxWidth:"100%",background:tone.color,borderRadius:999}} /></div>
+            <div className="row-sub" style={{marginTop:12,overflowWrap:"anywhere"}}>{directionOverdue} atividades atrasadas · {criticalRisks} riscos críticos</div>
+          </Link>
+          <a href={`/app/group/${group.id}/status-pdf`} className="btn btn-primary btn-block" style={{marginTop:16}}>Gerar Status</a>
+        </div>;
       })}
     </section>
   </main>;
