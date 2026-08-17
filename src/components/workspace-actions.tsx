@@ -1,10 +1,12 @@
 "use client";
 
-import {useState} from "react";
+import {useMemo,useState} from "react";
 import {Check,Copy,Link2,Share2,Users} from "lucide-react";
 import {createClient} from "@/lib/supabase/client";
 
 const ROLE_LABELS:Record<string,string>={program_manager:"Program Manager",project_manager:"Project Manager",member:"Time"};
+
+type MessageState={text:string;kind:"success"|"error"}|null;
 
 function extensionFromType(type:string){
   if(type.includes("png"))return"png";
@@ -16,14 +18,15 @@ function extensionFromType(type:string){
 
 export function WorkspaceActions({organizationId,organizationName,logoUrl,initial}:{organizationId:string;organizationName:string;logoUrl?:string;initial:any}){
   const [info,setInfo]=useState<any>(initial);
-  const [msg,setMsg]=useState("");
+  const [message,setMessage]=useState<MessageState>(null);
   const [inviteRole,setInviteRole]=useState(initial?.default_role||"member");
   const [busy,setBusy]=useState(false);
   const s=createClient();
+  const inviteLink=useMemo(()=>info?.code&&typeof window!=="undefined"?`${window.location.origin}/invite/${encodeURIComponent(info.code)}`:"",[info?.code]);
 
-  async function ensureInvite(){
-    if(info?.code && info?.default_role===inviteRole && info?.join_mode==="request") return info;
-    setBusy(true);setMsg("");
+  async function ensureInvite(forceNew=false){
+    if(!forceNew&&info?.code&&info?.default_role===inviteRole&&info?.join_mode==="request")return info;
+    setBusy(true);setMessage(null);
     const{data,error}=await s.rpc("rpc_regenerate_workspace_invite_code",{
       p_organization_id:organizationId,
       p_join_mode:"request",
@@ -32,8 +35,9 @@ export function WorkspaceActions({organizationId,organizationName,logoUrl,initia
       p_default_role:inviteRole
     });
     setBusy(false);
-    if(error){setMsg(error.message);return null}
-    setInfo(data);setMsg(`Convite para ${ROLE_LABELS[inviteRole]} gerado. A entrada ficará pendente para sua aprovação.`);
+    if(error){setMessage({text:"Não foi possível gerar o convite. Tente novamente.",kind:"error"});return null}
+    setInfo(data);
+    setMessage({text:`Convite para ${ROLE_LABELS[inviteRole]} criado. O acesso ficará pendente para sua aprovação.`,kind:"success"});
     return data;
   }
 
@@ -42,19 +46,23 @@ export function WorkspaceActions({organizationId,organizationName,logoUrl,initia
   async function copyLink(){
     const current=await ensureInvite();
     if(!current?.code)return;
-    await navigator.clipboard.writeText(buildLink(current.code));
-    setMsg("Link de convite copiado. O acesso só será liberado após sua aprovação.");
+    try{
+      await navigator.clipboard.writeText(buildLink(current.code));
+      setMessage({text:"Link de convite copiado. O acesso só será liberado após sua aprovação.",kind:"success"});
+    }catch{
+      setMessage({text:"Não foi possível copiar o link neste dispositivo.",kind:"error"});
+    }
   }
 
   async function getLogoFile(){
-    if(!logoUrl || logoUrl.startsWith("data:"))return null;
+    if(!logoUrl||logoUrl.startsWith("data:"))return null;
     try{
       const response=await fetch(logoUrl,{cache:"no-store"});
       if(!response.ok)return null;
       const blob=await response.blob();
       const type=blob.type||"image/png";
       const file=new File([blob],`logo-${organizationName.replace(/[^a-z0-9]+/gi,"-").toLowerCase()}.${extensionFromType(type)}`,{type});
-      if(typeof navigator.canShare==="function" && navigator.canShare({files:[file]}))return file;
+      if(typeof navigator.canShare==="function"&&navigator.canShare({files:[file]}))return file;
     }catch{}
     return null;
   }
@@ -67,22 +75,27 @@ export function WorkspaceActions({organizationId,organizationName,logoUrl,initia
     if(navigator.share){
       try{
         const logoFile=await getLogoFile();
-        if(logoFile){
-          await navigator.share({title:`Convite · ${organizationName}`,text,files:[logoFile]});
-        }else{
-          await navigator.share({title:`Convite · ${organizationName}`,text,url});
-        }
-        setMsg("Convite pronto para compartilhar.");
+        if(logoFile)await navigator.share({title:`Convite · ${organizationName}`,text,files:[logoFile]});
+        else await navigator.share({title:`Convite · ${organizationName}`,text,url});
+        setMessage({text:"Convite pronto para compartilhar.",kind:"success"});
         return;
-      }catch(err:any){if(err?.name==="AbortError")return}
+      }catch(err:any){
+        if(err?.name==="AbortError")return;
+      }
     }
-    await navigator.clipboard.writeText(text);setMsg("Convite copiado para compartilhar.");
+    try{
+      await navigator.clipboard.writeText(text);
+      setMessage({text:"Convite copiado para compartilhar.",kind:"success"});
+    }catch{
+      setMessage({text:"Não foi possível compartilhar ou copiar o convite neste dispositivo.",kind:"error"});
+    }
   }
 
   async function copyCode(){
     const current=await ensureInvite();
     if(!current?.code)return;
-    await navigator.clipboard.writeText(current.code);setMsg("Código copiado.");
+    try{await navigator.clipboard.writeText(current.code);setMessage({text:"Código copiado.",kind:"success"});}
+    catch{setMessage({text:"Não foi possível copiar o código.",kind:"error"});}
   }
 
   return <section className="card form" style={{overflow:"hidden"}}>
@@ -91,27 +104,33 @@ export function WorkspaceActions({organizationId,organizationName,logoUrl,initia
       <div style={{minWidth:0}}><h2 style={{margin:0}}>Convidar para este workspace</h2><p className="row-sub" style={{margin:"5px 0 0"}}>A pessoa entra pelo link, mas <strong>não recebe acesso automaticamente</strong>. Você revisa e aprova antes de liberar.</p></div>
     </div>
 
-    <div className="field"><label>Tipo sugerido de acesso</label><select className="select" value={inviteRole} onChange={e=>setInviteRole(e.target.value)}>
+    <div className="field"><label>Tipo sugerido de acesso</label><select className="select" value={inviteRole} onChange={e=>{setInviteRole(e.target.value);setMessage(null)}}>
       <option value="program_manager">Program Manager — Programas, Projetos e Ações</option>
       <option value="project_manager">Project Manager — Projetos e Ações</option>
       <option value="member">Time — cria e atualiza Ações</option>
     </select><div className="row-sub">Este é apenas o tipo sugerido. Na aprovação você poderá alterar.</div></div>
 
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-      <button type="button" className="btn btn-primary" onClick={share} disabled={busy} style={{minHeight:48}}><Share2 size={18}/> Compartilhar</button>
+      <button type="button" className="btn btn-primary" onClick={share} disabled={busy} style={{minHeight:48}}><Share2 size={18}/> {busy?"Gerando...":"Compartilhar"}</button>
       <button type="button" className="btn btn-outline" onClick={copyLink} disabled={busy} style={{minHeight:48}}><Link2 size={18}/> Copiar link</button>
     </div>
 
-    <div className="notice" style={{display:"flex",alignItems:"flex-start",gap:9}}><Check size={17} style={{marginTop:1,flexShrink:0}}/><span><strong>Aprovação obrigatória:</strong> depois que a pessoa fizer login, a solicitação aparecerá em Pessoas. Você confirma ou altera o perfil e só então libera o acesso.</span></div>
+    {inviteLink&&info?.default_role===inviteRole&&<div className="notice" style={{display:"grid",gap:6}}>
+      <strong>Convite ativo · {ROLE_LABELS[inviteRole]}</strong>
+      <div className="row-sub" style={{wordBreak:"break-all"}}>{inviteLink}</div>
+      <div className="row-sub">Este link continua válido mesmo se você criar outros convites depois.</div>
+    </div>}
+
+    <div className="notice" style={{display:"flex",alignItems:"flex-start",gap:9}}><Check size={17} style={{marginTop:1,flexShrink:0}}/><span><strong>Aprovação obrigatória:</strong> depois que a pessoa fizer login, a solicitação aparecerá em Pessoas e no Inbox. Você confirma ou altera o perfil e só então libera o acesso.</span></div>
 
     <details>
       <summary style={{cursor:"pointer",fontWeight:800,color:"var(--primary, #5b21b6)",padding:"6px 0"}}>Código alternativo</summary>
       <div className="form" style={{marginTop:10}}>
-        <button type="button" className="btn btn-secondary btn-block" onClick={ensureInvite} disabled={busy}>{busy?"Gerando...":"Gerar novo convite"}</button>
+        <button type="button" className="btn btn-secondary btn-block" onClick={()=>ensureInvite(true)} disabled={busy}>{busy?"Gerando...":"Gerar outro convite"}</button>
         {info?.code&&<div className="field"><label>Código</label><div style={{display:"flex",gap:8,alignItems:"stretch"}}><div className="codebox" style={{flex:1,margin:0}}>{info.code}</div><button type="button" className="btn btn-outline" aria-label="Copiar código" onClick={copyCode}><Copy size={17}/></button></div></div>}
       </div>
     </details>
 
-    {msg&&<div className={msg.toLowerCase().includes("não")||msg.toLowerCase().includes("erro")?"error":"successbox"}>{msg}</div>}
+    {message&&<div className={message.kind==="error"?"error":"successbox"}>{message.text}</div>}
   </section>;
 }
