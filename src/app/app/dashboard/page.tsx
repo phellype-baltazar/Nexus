@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { pct, healthLabel } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function numberValue(value: unknown) { const n = Number(value ?? 0); return Number.isFinite(n) ? n : 0; }
 function average(values: number[]) { if (!values.length) return 0; return values.reduce((sum, value) => sum + value, 0) / values.length; }
 function isOpenStatus(status: unknown) { const value = String(status || "").toLowerCase().trim(); return !["done", "completed", "closed", "cancelled", "canceled", "resolved"].includes(value); }
