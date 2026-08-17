@@ -3,16 +3,7 @@
 import {useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 
-const LABELS:Record<string,string>={
-  organization_owner:"Owner",
-  organization_admin:"Owner",
-  program_manager:"Program Manager",
-  project_manager:"Project Manager",
-  member:"Time",
-  viewer:"Visualizador",
-  guest:"Convidado",
-  group_admin:"Gestor de Direção",
-};
+const LABELS:Record<string,string>={organization_owner:"Owner",organization_admin:"Owner",group_admin:"Diretor",program_manager:"Program Manager",project_manager:"Project Manager",member:"Time",viewer:"Visualizador",guest:"Convidado"};
 
 export function roleLabel(role?:string|null){return LABELS[String(role||"")]||String(role||"Membro")}
 
@@ -31,8 +22,9 @@ export function MemberRoleEditor({organizationId,userId,role,isOwner}:{organizat
 
   if(isOwner||role==="organization_owner")return <span className="chip">Owner</span>;
 
-  return <div style={{minWidth:158}}>
-    <select className="select" value={value} disabled={busy} onChange={e=>change(e.target.value)} aria-label="Tipo de usuário">
+  return <div style={{width:"100%",maxWidth:280}}>
+    <select className="select" value={value} disabled={busy} onChange={e=>change(e.target.value)} aria-label="Tipo de usuário" style={{width:"100%"}}>
+      <option value="group_admin">Diretor</option>
       <option value="program_manager">Program Manager</option>
       <option value="project_manager">Project Manager</option>
       <option value="member">Time</option>
