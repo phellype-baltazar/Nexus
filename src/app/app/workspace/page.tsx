@@ -9,7 +9,7 @@ import { WorkspaceDeleteButton } from "@/components/workspace-delete-button";
 const ROLE_LABELS: Record<string, string> = {
   organization_owner: "Owner",
   organization_admin: "Owner",
-  group_admin: "Direção Manager",
+  group_admin: "Diretor",
   program_manager: "Program Manager",
   project_manager: "Project Manager",
   member: "Time",
@@ -45,7 +45,7 @@ export default async function Page({searchParams}:{searchParams: Promise<{ switc
   const userId = String(claims?.claims?.sub || "");
   const role = await getMyRole(w.id);
   const isOwner=role?.role === "organization_owner";
-  const canInvite=isOwner || role?.role === "organization_admin";
+  const canInvite=["organization_owner","organization_admin","group_admin","program_manager","project_manager","member"].includes(String(role?.role||""));
   let invite: any = null;
   if (canInvite) {
     const { data } = await s.rpc("rpc_get_workspace_invite_code", {p_organization_id: w.id});
