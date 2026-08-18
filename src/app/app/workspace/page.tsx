@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, getMyRole } from "@/lib/workspace";
 import { WorkspaceActions } from "@/components/workspace-actions";
@@ -32,7 +33,16 @@ async function switchWorkspace(formData: FormData) {
   if (!userId) redirect("/login");
   const { data, error } = await s.rpc("rpc_set_current_workspace", {p_organization_id: organizationId,p_group_id: null});
   if (error || data !== true) redirect("/app/workspace?switch=error");
-  redirect("/app/dashboard");
+
+  // The workspace changes data consumed by the persistent /app layout
+  // (name, logo and theme colors). Invalidate the whole app shell before
+  // redirecting so the next render immediately uses the new workspace
+  // instead of keeping the previous layout in the client router cache.
+  revalidatePath("/app", "layout");
+  revalidatePath("/app/dashboard", "page");
+  revalidatePath("/app/workspace", "page");
+
+  redirect(`/app/dashboard?workspace=${encodeURIComponent(organizationId)}`);
 }
 
 export default async function Page({searchParams}:{searchParams: Promise<{ switch?: string }>}) {
