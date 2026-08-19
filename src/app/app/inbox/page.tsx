@@ -7,6 +7,17 @@ export default async function Page(){
   const w=await getCurrentWorkspace();
   if(!w)return null;
 
+  const {data:claimsData}=await s.auth.getClaims();
+  const userId=String(claimsData?.claims?.sub||"");
+  if(userId){
+    await s.from("notifications")
+      .update({is_read:true,read_at:new Date().toISOString()})
+      .eq("organization_id",w.id)
+      .eq("user_id",userId)
+      .eq("is_read",false)
+      .is("dismissed_at",null);
+  }
+
   const myRole=await getMyRole(w.id);
   const role=String(myRole?.role||"");
   const canApprove=["organization_owner","organization_admin","group_admin","program_manager","project_manager"].includes(role);
@@ -33,5 +44,5 @@ export default async function Page(){
     <section className="card list">
       {!items.length&&!pending.length?<div className="empty">Nenhuma pendência no momento.</div>:items.map((i:any,n:number)=><div className="row" key={i.id||n}><div className="row-main"><div className="row-title">{i.title||i.type||"Notificação"}</div><div className="row-sub">{i.body||i.reason||""}</div></div>{i.priority&&<span className="chip">{i.priority}</span>}</div>)}
     </section>
-  </main>
+  </main>;
 }
