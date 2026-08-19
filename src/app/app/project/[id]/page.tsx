@@ -10,6 +10,7 @@ import {StatusCheckpointCreator} from "@/components/status-checkpoint-creator";
 import {RiskListEditor,KpiListEditor,CheckpointListEditor,FinanceGridEditor} from "@/components/project-live-editors";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
+import {MilestoneManager} from "@/components/milestone-manager";
 import {dateBR,pct,healthLabel} from "@/lib/format";
 
 function activityStatus(status:string,dueDate:string|null,completedAt:string|null){
@@ -40,7 +41,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
   const {data:p}=await s.from("projects").select("*,programs(id,name,groups(id,name))").eq("id",id).is("deleted_at",null).maybeSingle();
   if(!p)return <main className="page"><h1>Projeto</h1><div className="card">Não encontrado ou sem permissão.</div></main>;
 
-  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:financialItems},{data:benefits},{data:memberRows},{data:reports},{data:deps}] = await Promise.all([
+  const [{data:activities},{data:risks},{data:kpis},{data:budgets},{data:financialItems},{data:benefits},{data:memberRows},{data:reports},{data:deps},{data:milestones}] = await Promise.all([
     s.from("activities").select("*,profiles!activities_primary_owner_id_fkey(id,full_name)").eq("project_id",id).is("deleted_at",null).order("due_date",{ascending:true}),
     s.from("risks").select("*").eq("project_id",id).is("deleted_at",null).order("score",{ascending:false}),
     s.from("kpis").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
@@ -49,11 +50,12 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
     s.from("benefits").select("*").eq("project_id",id).is("deleted_at",null).order("name"),
     s.from("organization_members").select("user_id,role,status,profiles!organization_members_user_id_fkey(full_name)").eq("organization_id",w.id).eq("status","active"),
     s.from("status_reports").select("*").eq("project_id",id).is("deleted_at",null).order("period_end",{ascending:false}),
-    s.from("project_dependencies").select("*,projects!project_dependencies_depends_on_project_id_fkey(name)").eq("project_id",id)
+    s.from("project_dependencies").select("*,projects!project_dependencies_depends_on_project_id_fkey(name)").eq("project_id",id),
+    s.from("project_milestones").select("id,name,milestone_date").eq("project_id",id).is("deleted_at",null).order("milestone_date",{ascending:true})
   ]);
 
   const members=(memberRows||[]).map((m:any)=>({user_id:m.user_id,role:m.role,status:m.status,full_name:m.profiles?.full_name||null}));
-  const tabs=[["overview","Visão geral"],["activities","Atividades"],["risks","Riscos"],["kpis","KPIs"],["finance","Financeiro"],["people","Pessoas"],["status","Status"]];
+  const tabs=[["overview","Visão geral"],["activities","Atividades"],["milestones","Milestones"],["risks","Riscos"],["kpis","KPIs"],["finance","Financeiro"],["people","Pessoas"],["status","Status"]];
 
   return <main className="page" style={{maxWidth:"100%",overflowX:"hidden"}}>
     <ContextNav organizationName={w.name} group={(p as any).programs?.groups} program={(p as any).programs} project={{id:p.id,name:p.name}}/>
@@ -68,7 +70,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
         {label:"Fim",value:dateBR(p.due_date)},
       ]}/>
       <section className="card" style={{marginTop:12}}><h2>Descrição</h2><p className="muted">{p.description||"Sem descrição."}</p><div className="chip">{p.status}</div> <div className="chip">{p.priority}</div></section>
-      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date,a.completed_at).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>["open","monitoring"].includes(String(r.status))).length||0} ativos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios</div></div></div></section>
+      <section className="card"><h2>Resumo do projeto</h2><div className="row"><div className="row-main"><div className="row-title">{activities?.length||0} atividades</div><div className="row-sub">{activities?.filter((a:any)=>a.status==="done").length||0} feitas · {activities?.filter((a:any)=>activityStatus(a.status,a.due_date,a.completed_at).label==="Atrasada").length||0} atrasadas</div></div></div><div className="row"><div className="row-main"><div className="row-title">{risks?.length||0} riscos</div><div className="row-sub">{risks?.filter((r:any)=>["open","monitoring"].includes(String(r.status))).length||0} ativos</div></div></div><div className="row"><div className="row-main"><div className="row-title">{kpis?.length||0} KPIs</div><div className="row-sub">{benefits?.length||0} benefícios · {milestones?.length||0} milestones</div></div></div></section>
       {!!deps?.length&&<section className="card"><h2>Dependências</h2>{deps.map((d:any)=><div className="row" key={d.id}><div className="row-main"><div className="row-title">{d.projects?.name||"Projeto"}</div><div className="row-sub">{d.dependency_type}</div></div></div>)}</section>}
       <EntityActions type="project" id={p.id} initialTitle={p.name} initialDescription={p.description||""}/>
     </>}
@@ -79,6 +81,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
       <ActivityCreatorV2 organizationId={w.id} projectId={id} members={members}/>
     </>}
 
+    {tab==="milestones"&&<MilestoneManager organizationId={w.id} projectId={id} milestones={(milestones||[]).map((m:any)=>({id:String(m.id),name:String(m.name),milestone_date:String(m.milestone_date)}))}/>}
     {tab==="risks"&&<><RiskListEditor risks={risks||[]}/><RiskCreator organizationId={w.id} projectId={id}/></>}
     {tab==="kpis"&&<><KpiListEditor kpis={kpis||[]}/><KpiCreator organizationId={w.id} projectId={id}/></>}
     {tab==="finance"&&<><FinanceGridEditor organizationId={w.id} projectId={id} budget={budgets?.[0]||null} items={financialItems||[]} currency={budgets?.[0]?.currency||"BRL"}/><FinanceCreatorV2 organizationId={w.id} projectId={id}/></>}
