@@ -5,13 +5,14 @@ import {ContextNav} from "@/components/context-nav";
 import {EntityActions} from "@/components/entity-actions";
 import {SummaryCards} from "@/components/summary-cards";
 import {CreateProgramInGroupForm} from "@/components/create-forms";
+import {GroupMacroView} from "@/components/group-macro-view";
 import {pct,healthLabel,money} from "@/lib/format";
 
 export default async function Page({params}:{params:Promise<{id:string}>}){
   const {id}=await params;const s=await createClient();const w=await getCurrentWorkspace();if(!w)return null;
   const {data:g}=await s.from("groups").select("*").eq("id",id).is("deleted_at",null).maybeSingle();
   if(!g)return <main className="page"><h1>Direção</h1><div className="card">Não encontrada ou sem permissão.</div></main>;
-  const {data:programs}=await s.from("programs").select("id,name,progress,health").eq("group_id",id).is("deleted_at",null).is("archived_at",null).order("name");
+  const {data:programs}=await s.from("programs").select("id,name,progress,health,start_date,due_date").eq("group_id",id).is("deleted_at",null).is("archived_at",null).order("name");
   const pids=(programs||[]).map(p=>p.id);
   const projectsResult=pids.length?await s.from("projects").select("id,name,program_id,progress,health").in("program_id",pids).is("deleted_at",null).is("archived_at",null):{data:[] as any[]};
   const projects=projectsResult.data||[];
@@ -20,6 +21,13 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     s.from("risks").select("*").eq("group_id",id).is("deleted_at",null),
     s.from("budgets").select("*").eq("group_id",id)
   ]);
+
+  const macroPrograms=(programs||[]).map((p:any)=>({
+    id:String(p.id),name:String(p.name),start_date:p.start_date||null,due_date:p.due_date||null,
+    progress:Number(p.progress||0),health:p.health||null,
+    projectCount:projects.filter((pr:any)=>String(pr.program_id)===String(p.id)).length,
+    offProjects:projects.filter((pr:any)=>String(pr.program_id)===String(p.id)&&String(pr.health||'').toLowerCase().includes('off')).length
+  }));
 
   return <main className="page" style={{maxWidth:"100%",overflowX:"hidden"}}>
     <ContextNav organizationName={w.name} group={{id:g.id,name:g.name}}/>
@@ -32,6 +40,8 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
       {label:"Programas",value:programs?.length||0},
       {label:"Projetos",value:projects.length},
     ]}/>
+
+    <GroupMacroView programs={macroPrograms}/>
 
     <div className="section-title"><h2>Programas</h2></div>
     <section className="card list">{!programs?.length?<div className="empty">Nenhum programa. Use o + para adicionar o primeiro.</div>:programs.map(p=><Link className="row" href={`/app/program/${p.id}`} key={p.id}><div className="row-main"><div className="row-title">{p.name}</div><div className="row-sub">{pct(p.progress)} · {healthLabel(p.health)}</div></div><span className="row-arrow">›</span></Link>)}</section>
