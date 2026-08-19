@@ -2,7 +2,7 @@ import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace} from "@/lib/workspace";
 import {ContextNav} from "@/components/context-nav";
 import {ActivityInteractiveDashboard} from "@/components/activity-interactive-dashboard";
-import {ActivityScheduleTools} from "@/components/activity-schedule-tools";
+import {ActivityDependenciesOnly} from "@/components/activity-dependencies-only";
 
 export default async function Page({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -43,27 +43,22 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
   const ownerName=externalOwnerName||(a as any).profiles?.full_name||"Sem responsável";
   const program=project?.programs;
   const group=program?.groups;
-
-  const snapshot=(scheduleSnapshot as any)||{};
-  const scheduleRows=Array.isArray(snapshot?.schedule)?snapshot.schedule:[];
-  const schedule=scheduleRows.map((r:any)=>({
-    activity_id:String(r.activity_id),title:String(r.title||"Atividade"),start_date:String(r.start_date),finish_date:String(r.finish_date),duration_days:Number(r.duration_days||1),early_start:String(r.early_start),early_finish:String(r.early_finish),late_start:String(r.late_start),late_finish:String(r.late_finish),total_float_days:Number(r.total_float_days||0),is_critical:Boolean(r.is_critical),predecessor_count:Number(r.predecessor_count||0),successor_count:Number(r.successor_count||0),owner_name:String(r.owner_name||"Sem responsável"),progress:Number(r.progress||0),status:String(r.status||"")
-  }));
+  const scheduleRows=Array.isArray((scheduleSnapshot as any)?.schedule)?(scheduleSnapshot as any).schedule:[];
+  const currentSchedule=scheduleRows.find((r:any)=>String(r.activity_id)===String(a.id));
 
   return <main className="page" style={{maxWidth:"100%",overflowX:"hidden"}}>
     <ContextNav organizationName={w.name} group={group} program={program} project={project}/>
     <span className="eyebrow">Atividade</span>
     <h1>{a.title}</h1>
 
-    <ActivityScheduleTools
+    <ActivityDependenciesOnly
       organizationId={a.organization_id}
       projectId={projectId}
-      projectName={project?.name||"Projeto"}
       currentActivityId={a.id}
       activities={(projectActivities||[]).map((x:any)=>({id:String(x.id),title:String(x.title||"Atividade")}))}
       dependencies={(dependencyRows||[]).map((x:any)=>({id:String(x.id),activity_id:String(x.activity_id),depends_on_activity_id:String(x.depends_on_activity_id),dependency_type:x.dependency_type,lag_days:Number(x.lag_days||0),note:x.note||null}))}
-      schedule={schedule}
-      optimization={(snapshot?.optimization as any)||null}
+      isCritical={Boolean(currentSchedule?.is_critical)}
+      totalFloatDays={currentSchedule?.total_float_days==null?null:Number(currentSchedule.total_float_days)}
     />
 
     <ActivityInteractiveDashboard
