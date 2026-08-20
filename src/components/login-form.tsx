@@ -83,8 +83,7 @@ export function LoginForm({nextPath=""}:{nextPath?:string}) {
     <div className="divider">ou</div>
 
     <div className="card" style={{margin:0,padding:14,borderColor:"var(--line)"}}>
-      <div style={{fontWeight:800,marginBottom:4}}>Entrar com e-mail corporativo</div>
-      <div className="muted" style={{fontSize:13,marginBottom:12}}>Use esta opção quando o login Microsoft da empresa estiver bloqueado.</div>
+      <div style={{fontWeight:800,marginBottom:10}}>Entrar com e-mail</div>
       {otpStep==="email"?<form className="form" onSubmit={sendOtp}>
         <div className="field"><label htmlFor="corporate-email">E-mail</label><input id="corporate-email" className="input" type="email" autoComplete="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="nome@empresa.com" required/></div>
         <button className="btn btn-primary" disabled={busy}>{busy?"Enviando...":"Receber código por e-mail"}</button>
