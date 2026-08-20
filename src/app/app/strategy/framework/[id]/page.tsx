@@ -2,6 +2,9 @@ import Link from "next/link";
 import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace} from "@/lib/workspace";
+import {FrameworkItemEditor} from "@/components/framework-item-editor";
+
+function statusLabel(status?:string){return ({active:"Em andamento",on_track:"On track",off_track:"Off tracking",completed:"Concluído",paused:"Pausado"} as Record<string,string>)[status||""]||status||"Em andamento"}
 
 export default async function Page({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -24,14 +27,14 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
     <section className="card"><p className="muted" style={{margin:0}}>{framework.description||"Referencial estratégico do workspace."}</p></section>
     {categories.map(category=><div key={category}>
       <div className="section-title"><h2>{category}</h2></div>
-      <section className="card list">{rows.filter((x:any)=>(x.category||"Itens")===category).map((x:any)=><div className="row" key={x.id} style={{alignItems:"flex-start"}}>
+      <section className="card list">{rows.filter((x:any)=>(x.category||"Itens")===category).map((x:any)=><div className="row" key={x.id} style={{alignItems:"flex-start",flexWrap:"wrap"}}>
         <div className="row-main">
           <div className="row-title">{x.name}</div>
-          <div className="row-sub">{[x.classification,x.target_text].filter(Boolean).join(" · ")}</div>
+          <div className="row-sub">{[x.classification,statusLabel(x.status),x.target_text].filter(Boolean).join(" · ")}</div>
           {x.baseline_text&&<div style={{marginTop:8}}><strong>Baseline</strong><div className="row-sub">{x.baseline_text}</div></div>}
           {x.planned_delivery&&<div style={{marginTop:8}}><strong>Plano</strong><div className="row-sub">{x.planned_delivery}</div></div>}
         </div>
-        {linked.has(x.id)&&<span className="chip">Coberto</span>}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>{linked.has(x.id)&&<span className="chip">Coberto</span>}<FrameworkItemEditor item={x}/></div>
       </div>)}</section>
     </div>)}
   </main>;
