@@ -2,8 +2,12 @@ import Link from "next/link";
 import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace} from "@/lib/workspace";
 import {StrategyManager} from "@/components/strategy-manager";
+import {StrategyObjectiveEditor} from "@/components/strategy-objective-editor";
+import {StrategyPlanEditor} from "@/components/strategy-plan-editor";
 import {getWorkspaceTemplate} from "@/lib/workspace-templates";
 import {pct,dateBR} from "@/lib/format";
+
+function statusLabel(status?:string){return ({active:"Em andamento",on_track:"On track",off_track:"Off tracking",completed:"Concluído",paused:"Pausado",draft:"Rascunho",archived:"Arquivado"} as Record<string,string>)[status||""]||status||"Em andamento"}
 
 export default async function Page(){
   const s=await createClient();
@@ -35,8 +39,9 @@ export default async function Page(){
     <span className="eyebrow">Estratégia · {template.name}</span>
     <h1>{plan?.name||template.strategyLabel}</h1>
     {plan&&<section className="card" style={{marginBottom:12}}>
-      <div className="row-main"><div className="row-title">{plan.status==="active"?"Plano em execução":"Plano estratégico"}</div><div className="row-sub">{dateBR(plan.period_start)} → {dateBR(plan.period_end)} · versão {plan.version}</div></div>
+      <div className="row-main"><div className="row-title">{statusLabel(plan.status)}</div><div className="row-sub">{dateBR(plan.period_start)} → {dateBR(plan.period_end)} · versão {plan.version}</div></div>
       {plan.strategic_intent&&<p className="muted" style={{marginBottom:0}}>{plan.strategic_intent}</p>}
+      <StrategyPlanEditor plan={plan}/>
     </section>}
 
     <section className="grid grid-2" style={{marginBottom:12}}>
@@ -59,7 +64,7 @@ export default async function Page(){
     </section>
 
     <div className="section-title"><h2>Objetivos estratégicos</h2></div>
-    <section className="card list">{!objectives?.length?<div className="empty">Nenhum objetivo estratégico.</div>:objectives.map((x:any)=><div className="row" key={x.id}><div className="row-main"><div className="row-title">{x.name}</div><div className="row-sub">{x.groups?.name||w.name} · {dateBR(x.start_date)} → {dateBR(x.due_date)}</div></div><span className="chip">{pct(x.progress)}</span></div>)}</section>
+    <section className="card list">{!objectives?.length?<div className="empty">Nenhum objetivo estratégico.</div>:objectives.map((x:any)=><div className="row" key={x.id} style={{alignItems:"flex-start",flexWrap:"wrap"}}><div className="row-main"><div className="row-title">{x.name}</div><div className="row-sub">{x.groups?.name||w.name} · {dateBR(x.start_date)} → {dateBR(x.due_date)} · {statusLabel(x.status)}</div>{x.description&&<div className="row-sub" style={{marginTop:6}}>{x.description}</div>}</div><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="chip">{pct(x.progress)}</span><StrategyObjectiveEditor objective={x} groups={groups||[]}/></div></div>)}</section>
 
     {!!kpis?.length&&<><div className="section-title"><h2>Scorecard</h2></div><section className="card list">{kpis.slice(0,12).map((k:any)=><div className="row" key={k.id}><div className="row-main"><div className="row-title">{k.name}</div><div className="row-sub">Meta {k.target??"—"} {k.unit||""} · {k.frequency}</div></div><span className="chip">{k.current_value??"—"}</span></div>)}</section></>}
 
