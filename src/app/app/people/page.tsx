@@ -2,8 +2,9 @@ import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace,getMyRole} from "@/lib/workspace";
 import {AccessDecisionButtons} from "@/components/access-decision-buttons";
 import {MemberRoleEditor} from "@/components/member-role-editor";
+import {WorkspaceOwnershipTransfer} from "@/components/workspace-ownership-transfer";
 
-const ROLE_LABELS:Record<string,string>={organization_owner:"Owner",organization_admin:"Owner",group_admin:"Diretor",program_manager:"Program Manager",project_manager:"Project Manager",member:"Time",viewer:"Visualizador",guest:"Convidado"};
+const ROLE_LABELS:Record<string,string>={organization_owner:"Owner",organization_admin:"Owner administrativo",group_admin:"Diretor",program_manager:"Program Manager",project_manager:"Project Manager",member:"Time",viewer:"Visualizador",guest:"Convidado"};
 function roleLabel(role?:string|null){return ROLE_LABELS[String(role||"")]||String(role||"Membro")}
 
 export default async function Page(){
@@ -13,7 +14,10 @@ export default async function Page(){
   const myRole=await getMyRole(w.id);
   const myRoleName=String(myRole?.role||"");
   const isOwner=["organization_owner","organization_admin"].includes(myRoleName);
+  const isPrimaryOwner=myRoleName==="organization_owner";
   const canApprove=["organization_owner","organization_admin","group_admin","program_manager","project_manager"].includes(myRoleName);
+  const {data:claims}=await s.auth.getClaims();
+  const currentUserId=String(claims?.claims?.sub||"");
 
   const[{data:members},{data:req}]=await Promise.all([
     s.rpc("rpc_admin_members",{p_organization_id:w.id}),
@@ -25,7 +29,7 @@ export default async function Page(){
   return <main className="page">
     <span className="eyebrow">Workspace</span>
     <h1>Pessoas</h1>
-    <p className="muted">Membros, papéis e aprovações de acesso.</p>
+    <p className="muted">Membros, papéis, aprovações e continuidade do workspace.</p>
 
     <section className="card" style={{padding:16,display:"grid",gap:12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
@@ -35,7 +39,7 @@ export default async function Page(){
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
         <div className="notice" style={{padding:10}}><strong>Diretor</strong><div className="row-sub">Owner aprova</div></div>
         <div className="notice" style={{padding:10}}><strong>Managers</strong><div className="row-sub">Diretor ou Owner</div></div>
-        <div className="notice" style={{padding:10,gridColumn:"1 / -1"}}><strong>Time</strong><div className="row-sub">Manager, Diretor ou Owner</div></div>
+        <div className="notice" style={{padding:10,gridColumn:"1 / -1"}}><strong>Time</strong><div className="row-sub">Pode criar e atualizar ações em projetos disponíveis</div></div>
       </div>
     </section>
 
@@ -67,5 +71,7 @@ export default async function Page(){
         {isOwner&&m.role!=="organization_owner"&&<div style={{borderTop:"1px solid var(--border,#e5e7eb)",paddingTop:10}}><div className="row-sub" style={{marginBottom:6}}>Alterar papel</div><MemberRoleEditor organizationId={w.id} userId={m.user_id} role={m.role} isOwner={false}/></div>}
       </article>)}
     </section>
+
+    {isPrimaryOwner&&<><div className="section-title"><h2>Continuidade</h2></div><WorkspaceOwnershipTransfer organizationId={w.id} currentUserId={currentUserId} members={memberList}/></>}
   </main>;
 }
