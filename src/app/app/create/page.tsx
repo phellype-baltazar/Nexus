@@ -8,10 +8,11 @@ export default async function Page(){
   if(!w)return null;
 
   const role=await getMyRole(w.id);
-  const [{data:c},{data:groups},{data:programs}]=await Promise.all([
+  const [{data:c},{data:groups},{data:programs},{data:projects}]=await Promise.all([
     s.auth.getClaims(),
     s.from("groups").select("id,name").eq("organization_id",w.id).is("deleted_at",null).is("archived_at",null).order("name"),
-    s.from("programs").select("id,name,group_id").eq("organization_id",w.id).is("deleted_at",null).is("archived_at",null).order("name")
+    s.from("programs").select("id,name,group_id").eq("organization_id",w.id).is("deleted_at",null).is("archived_at",null).order("name"),
+    s.from("projects").select("id,name,program_id").eq("organization_id",w.id).is("deleted_at",null).order("name")
   ]);
   const uid=String(c?.claims?.sub||"");
 
@@ -19,6 +20,6 @@ export default async function Page(){
     <span className="eyebrow">Criação</span>
     <h1>Criar</h1>
     <p className="muted">As opções disponíveis seguem o seu papel neste workspace.</p>
-    <StructureBuilder organizationId={w.id} userId={uid} role={role?.role||"member"} groups={groups||[]} programs={programs||[]}/>
+    <StructureBuilder organizationId={w.id} userId={uid} role={role?.role||"member"} groups={groups||[]} programs={programs||[]} projects={projects||[]}/>
   </main>;
 }
