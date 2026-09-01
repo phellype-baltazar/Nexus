@@ -1,6 +1,10 @@
 import {createClient} from "@/lib/supabase/server";
 import {getCurrentWorkspace,getMyRole} from "@/lib/workspace";
 import {StructureBuilder} from "@/components/structure-builder";
+import {RoleSync} from "@/components/role-sync";
+
+export const dynamic="force-dynamic";
+export const revalidate=0;
 
 export default async function Page(){
   const s=await createClient();
@@ -15,11 +19,13 @@ export default async function Page(){
     s.from("projects").select("id,name,program_id").eq("organization_id",w.id).is("deleted_at",null).order("name")
   ]);
   const uid=String(c?.claims?.sub||"");
+  const roleName=role?.role||"member";
 
   return <main className="page">
+    <RoleSync organizationId={w.id} userId={uid} role={roleName}/>
     <span className="eyebrow">Criação</span>
     <h1>Criar</h1>
     <p className="muted">As opções disponíveis seguem o seu papel neste workspace.</p>
-    <StructureBuilder organizationId={w.id} userId={uid} role={role?.role||"member"} groups={groups||[]} programs={programs||[]} projects={projects||[]}/>
+    <StructureBuilder organizationId={w.id} userId={uid} role={roleName} groups={groups||[]} programs={programs||[]} projects={projects||[]}/>
   </main>;
 }
