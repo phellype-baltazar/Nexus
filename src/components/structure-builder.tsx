@@ -14,7 +14,6 @@ export function StructureBuilder({organizationId,userId,role,groups,programs,pro
   const isDirector=role==="group_admin";
   const isProgramManager=role==="program_manager";
   const isProjectManager=role==="project_manager";
-  const isMember=role==="member";
   const isReadOnly=role==="viewer"||role==="guest";
   const canCreateProgram=isOwner||isDirector||isProgramManager;
   const canCreateProject=isOwner||isDirector||isProgramManager||isProjectManager;
@@ -66,7 +65,7 @@ export function StructureBuilder({organizationId,userId,role,groups,programs,pro
     try{
       if(!actionProjectId)throw new Error("Selecione um projeto.");
       if(!action.title.trim())throw new Error("Informe o nome da ação.");
-      const{data,error}=await s.from("activities").insert({organization_id:organizationId,project_id:actionProjectId,title:action.title.trim(),start_date:action.start_date||null,due_date:action.due_date||null,priority:action.priority,owner_user_id:userId}).select("id").single();
+      const{data,error}=await s.from("activities").insert({organization_id:organizationId,project_id:actionProjectId,title:action.title.trim(),start_date:action.start_date||null,due_date:action.due_date||null,priority:action.priority,primary_owner_id:userId}).select("id").single();
       if(error)throw error;
       location.href=`/app/activity/${data.id}`;
     }catch(err:any){setMsg(err?.message||"Não foi possível criar a ação.");setBusy(false)}
